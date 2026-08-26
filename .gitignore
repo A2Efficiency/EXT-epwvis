@@ -5,7 +5,6 @@ bin-release/
 references/
 weather_files/
 # weather dashboard / deck pipeline
-out/
 tools/node_modules/
 tools/package-lock.json
 tools/states-10m.json

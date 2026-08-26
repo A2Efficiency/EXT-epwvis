@@ -1,0 +1,147 @@
+{
+  "units": "IP",
+  "scale": 3,
+  "locations": [
+    {
+      "slug": "denver-centennial-ap",
+      "name": "Denver-Centennial AP (CO, USA)",
+      "station": "Denver-Centennial AP",
+      "epw": "weather_files/denver-centennial-ap.epw",
+      "meta": {
+        "station": "Denver-Centennial AP",
+        "subtitle": "CO, USA  ·  SRC-TMYx  ·  WMO 724666",
+        "state": "CO",
+        "country": "USA",
+        "source": "SRC-TMYx",
+        "wmo": "724666",
+        "latitude": "39.570° N",
+        "longitude": "104.849° W",
+        "elevation": "5,883 ft",
+        "timezone": "UTC-7",
+        "stateName": "Colorado",
+        "koppenCode": "BSk",
+        "koppenName": "Cool - Dry",
+        "koppenDescription": "Semiarid Mid Latitude/Highlands",
+        "ashraeZone": "5B",
+        "ashraeZoneSource": "ASHRAE 169-2021"
+      },
+      "totals": {
+        "unit": "°F·day",
+        "hBase": 65,
+        "cBase": 65,
+        "occStart": 7,
+        "occEnd": 19,
+        "occupiedHours": 4380,
+        "totalHours": 8760,
+        "hddOccupied": 2436,
+        "cddOccupied": 854,
+        "hddAll": 6434,
+        "cddAll": 950
+      },
+      "charts": {
+        "location-map": "out/denver-centennial-ap/location-map.png",
+        "temperature-annual": "out/denver-centennial-ap/temperature-annual.png",
+        "temperature-daily-profile": "out/denver-centennial-ap/temperature-daily-profile.png",
+        "utci-categories": "out/denver-centennial-ap/utci-categories.png",
+        "utci-summary": "out/denver-centennial-ap/utci-summary.png",
+        "utci-stress-categories": "out/denver-centennial-ap/utci-stress-categories.png",
+        "degree-days-monthly": "out/denver-centennial-ap/degree-days-monthly.png",
+        "degree-days-by-temperature": "out/denver-centennial-ap/degree-days-by-temperature.png"
+      }
+    },
+    {
+      "slug": "chicago-ohare-intl-ap",
+      "name": "Chicago OHare Intl AP (IL, USA)",
+      "station": "Chicago OHare Intl AP",
+      "epw": "weather_files/chicago-ohare-intl-ap.epw",
+      "meta": {
+        "station": "Chicago OHare Intl AP",
+        "subtitle": "IL, USA  ·  SRC-TMYx  ·  WMO 725300",
+        "state": "IL",
+        "country": "USA",
+        "source": "SRC-TMYx",
+        "wmo": "725300",
+        "latitude": "41.960° N",
+        "longitude": "87.932° W",
+        "elevation": "662 ft",
+        "timezone": "UTC-6",
+        "stateName": "Illinois",
+        "koppenCode": "Dfa",
+        "koppenName": "Cool - Humid",
+        "koppenDescription": "Humid Continental (Warm Summer)",
+        "ashraeZone": "5A",
+        "ashraeZoneSource": "ASHRAE 169-2021"
+      },
+      "totals": {
+        "unit": "°F·day",
+        "hBase": 65,
+        "cBase": 65,
+        "occStart": 7,
+        "occEnd": 19,
+        "occupiedHours": 4380,
+        "totalHours": 8760,
+        "hddOccupied": 2692,
+        "cddOccupied": 849,
+        "hddAll": 6027,
+        "cddAll": 1138
+      },
+      "charts": {
+        "location-map": "out/chicago-ohare-intl-ap/location-map.png",
+        "temperature-annual": "out/chicago-ohare-intl-ap/temperature-annual.png",
+        "temperature-daily-profile": "out/chicago-ohare-intl-ap/temperature-daily-profile.png",
+        "utci-categories": "out/chicago-ohare-intl-ap/utci-categories.png",
+        "utci-summary": "out/chicago-ohare-intl-ap/utci-summary.png",
+        "utci-stress-categories": "out/chicago-ohare-intl-ap/utci-stress-categories.png",
+        "degree-days-monthly": "out/chicago-ohare-intl-ap/degree-days-monthly.png",
+        "degree-days-by-temperature": "out/chicago-ohare-intl-ap/degree-days-by-temperature.png"
+      }
+    },
+    {
+      "slug": "phoenix-sky-harbor-intl-ap",
+      "name": "Phoenix-Sky Harbor Intl AP (AZ, USA)",
+      "station": "Phoenix-Sky Harbor Intl AP",
+      "epw": "weather_files/phoenix-sky-harbor-intl-ap.epw",
+      "meta": {
+        "station": "Phoenix-Sky Harbor Intl AP",
+        "subtitle": "AZ, USA  ·  SRC-TMYx  ·  WMO 722780",
+        "state": "AZ",
+        "country": "USA",
+        "source": "SRC-TMYx",
+        "wmo": "722780",
+        "latitude": "33.428° N",
+        "longitude": "112.004° W",
+        "elevation": "1,107 ft",
+        "timezone": "UTC-7",
+        "stateName": "Arizona",
+        "koppenCode": "BWh",
+        "koppenName": "Very Hot - Dry",
+        "koppenDescription": "Arid Tropical Dry",
+        "ashraeZone": "1B",
+        "ashraeZoneSource": "ASHRAE 169-2021"
+      },
+      "totals": {
+        "unit": "°F·day",
+        "hBase": 65,
+        "cBase": 65,
+        "occStart": 7,
+        "occEnd": 19,
+        "occupiedHours": 4380,
+        "totalHours": 8760,
+        "hddOccupied": 432,
+        "cddOccupied": 3262,
+        "hddAll": 1257,
+        "cddAll": 5338
+      },
+      "charts": {
+        "location-map": "out/phoenix-sky-harbor-intl-ap/location-map.png",
+        "temperature-annual": "out/phoenix-sky-harbor-intl-ap/temperature-annual.png",
+        "temperature-daily-profile": "out/phoenix-sky-harbor-intl-ap/temperature-daily-profile.png",
+        "utci-categories": "out/phoenix-sky-harbor-intl-ap/utci-categories.png",
+        "utci-summary": "out/phoenix-sky-harbor-intl-ap/utci-summary.png",
+        "utci-stress-categories": "out/phoenix-sky-harbor-intl-ap/utci-stress-categories.png",
+        "degree-days-monthly": "out/phoenix-sky-harbor-intl-ap/degree-days-monthly.png",
+        "degree-days-by-temperature": "out/phoenix-sky-harbor-intl-ap/degree-days-by-temperature.png"
+      }
+    }
+  ]
+}
