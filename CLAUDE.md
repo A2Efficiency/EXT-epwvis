@@ -54,13 +54,57 @@ is deliberately identical to `epwCharts.js`** (`calcDD`, `accumBins`,
 `computeDailyStats`, `computeHourlyProfileByMonth`) so the deck and the viewer
 can never disagree. If you touch that math, keep both sides in step.
 
+## Setup — run this first in a fresh environment
+
+Nothing here is vendored. In a new checkout, sandbox, or cloud session, install
+these before running anything:
+
+```bash
+# 1. Node deps + the headless browser that draws the charts
+cd tools
+npm install
+npx playwright install --with-deps chromium     # drop --with-deps on Windows/macOS
+cd ..
+
+# 2. Python deps
+pip install python-pptx
+```
+
+That is the whole list. Everything else is stdlib or already vendored in `lib/`.
+
+Requirements and caveats:
+
+- **Node 18+** and **Python 3.9+**.
+- `npx playwright install` downloads a private Chromium (~700 MB on Windows,
+  less on Linux) into a per-user cache. On Linux, `--with-deps` also installs the
+  system libraries Chromium needs, and may need `sudo`. If a proxy blocks the
+  download, set `PLAYWRIGHT_DOWNLOAD_HOST`.
+- **Network access to `climate.onebuilding.org`** is required to fetch weather
+  files. That host serves a self-signed certificate, so `fetch_epw.py`
+  deliberately disables TLS verification (as upstream's own
+  `build_station_index.py` does). If the host is unreachable, drop `.epw` files
+  into `weather_files/` by hand and write `tools/locations.json` yourself, then
+  run with `--skip-fetch`.
+- **No display is needed.** Chromium runs headless.
+- **Fonts affect the PNGs.** Charts are drawn in Open Sans (the template's body
+  font) with a Helvetica/Arial fallback. A bare Linux container has none of
+  these, so Chromium substitutes something with different metrics and labels can
+  shift or collide. Install them first — on Debian/Ubuntu:
+  `sudo apt-get install -y fonts-open-sans fonts-liberation` — or accept that the
+  PNGs will not match what this machine produced, and re-check them visually.
+- **PowerPoint is not required to build the deck** — `python-pptx` writes the
+  file directly. It is only used for the optional visual check below, and that
+  path is Windows-only.
+
+Verify the install with a single location:
+
+```bash
+python tools/make_deck.py "Denver-Centennial AP"
+```
+
 ## Running the pipeline
 
 ```bash
-# one-time
-cd tools && npm install && npx playwright install chromium && cd ..
-pip install python-pptx
-
 python tools/make_deck.py --search denver          # find exact station names
 python tools/make_deck.py "Denver-Centennial AP" "Chicago-OHare" --client "Acme"
 ```
@@ -92,8 +136,10 @@ caught real bugs in this repo:
 white labels invisible on light fills, and 25% dead whitespace baked into every
 PNG (the renderer was shooting the block-level `<figure>` wrapper, not the SVG).
 
-**Render the actual deck.** PowerPoint is installed; export slides to images via
-COM and look at them:
+**Render the actual deck.** *Windows with PowerPoint installed only* — there is
+no equivalent in a Linux sandbox, so skip this step there (or use
+`soffice --headless --convert-to pdf` if LibreOffice happens to be available).
+Export slides to images via COM and look at them:
 
 ```powershell
 $ppt = New-Object -ComObject PowerPoint.Application
@@ -157,8 +203,10 @@ Earth 1:10m, public domain). Territories are stripped because
 - **This Bash tool mangles quoted heredocs containing apostrophes.** For
   multi-line JS or Python edits, use the Write tool, or write a script file to
   the scratchpad and run it.
-- Chromium for Playwright is a ~700 MB per-user cache in
-  `%LOCALAPPDATA%\ms-playwright`, not a system install.
+- Chromium for Playwright is a per-user cache (`%LOCALAPPDATA%\ms-playwright`
+  on Windows, `~/.cache/ms-playwright` on Linux), not a system install.
+- **`tools/node_modules/` is gitignored**, so a fresh clone always needs
+  `npm install` before `render.mjs` will run.
 
 ## Deck structure
 
