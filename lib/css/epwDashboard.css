@@ -1,0 +1,197 @@
+/*-------------------------------------------------------------------------
+ * epwDashboard.css
+ * Layout for the weather-file reporting dashboard (dashboard.html).
+ * Deliberately independent of epwvis.css so the viewer and the deck can
+ * evolve separately.
+ *-------------------------------------------------------------------------*/
+
+:root {
+  --dash-bg:       #f4f5f0;   /* brand lt2 */
+  --dash-surface:  #ffffff;
+  --dash-border:   #e0e2da;
+  --dash-ink:      #1a1f16;   /* brand dk1 */
+  --dash-ink-soft: #4a5245;
+  --dash-ink-mute: #7a8075;   /* brand accent5 */
+  --dash-accent:   #00a3b4;   /* brand accent3 */
+}
+
+body.epw-dashboard {
+  margin: 0;
+  background: var(--dash-bg);
+  color: var(--dash-ink);
+  font-family: "Open Sans", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Load bar (hidden in exported PNGs) ---------------------------- */
+.dash-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  background: var(--dash-surface);
+  border-bottom: 1px solid var(--dash-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.dash-toolbar h1 {
+  font-size: 15px;
+  font-weight: bold;
+  margin: 0 8px 0 0;
+  letter-spacing: -0.01em;
+}
+.dash-toolbar label { font-size: 12px; color: var(--dash-ink-soft); }
+.dash-toolbar input[type="number"] { width: 62px; }
+.dash-toolbar input, .dash-toolbar select {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--dash-border);
+  border-radius: 4px;
+  background: #fff;
+}
+.dash-toolbar button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--dash-border);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+.dash-toolbar button:hover { background: #f6f8fa; }
+.dash-status { font-size: 12px; color: var(--dash-ink-mute); margin-left: auto; }
+.dash-status.error { color: #e55a00; }
+.dash-status.ok    { color: #4a8b2c; }
+
+/* ---- Page / slide flow --------------------------------------------- */
+.dash-page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 20px 20px 60px;
+}
+.dash-block {
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.dash-block > h2 {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dash-ink-mute);
+  margin: 0 0 14px 0;
+}
+
+/* ---- Location header: map beside metadata -------------------------- */
+.dash-loc {
+  display: flex;
+  gap: 26px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.dash-loc-map { flex: 0 0 auto; }
+.dash-loc-meta { flex: 1 1 320px; min-width: 300px; }
+.dash-loc-meta h3 {
+  font-size: 21px;
+  margin: 0 0 2px 0;
+  letter-spacing: -0.01em;
+}
+.dash-loc-sub {
+  font-size: 12px;
+  color: var(--dash-ink-mute);
+  margin-bottom: 14px;
+}
+.dash-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 22px;
+  margin-bottom: 14px;
+}
+.dash-fact .k {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dash-ink-mute);
+}
+.dash-fact .v { font-size: 14px; font-weight: bold; }
+.dash-koppen {
+  font-size: 12.5px;
+  color: var(--dash-ink-soft);
+  line-height: 1.45;
+  border-left: 3px solid var(--dash-accent);
+  padding-left: 10px;
+}
+.dash-koppen b { color: var(--dash-ink); }
+
+/* ---- Chart frames --------------------------------------------------- */
+.dash-figure { margin: 0; }
+.dash-figure + .dash-figure { margin-top: 20px; }
+.dash-figure svg { display: block; max-width: 100%; height: auto; }
+.dash-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* ---- UTCI summary table --------------------------------------------- */
+.epw-otc-summary {
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.epw-otc-summary th {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--dash-ink);
+  text-align: left;
+  padding: 0 8px 4px 0;
+  border-bottom: 1px solid var(--dash-border);
+}
+.epw-otc-summary td { padding: 4px 8px 4px 0; white-space: nowrap; }
+.epw-otc-summary tr.base { font-weight: bold; }
+.epw-otc-summary td.lbl   { color: var(--dash-ink); font-weight: bold; padding-right: 18px; }
+.epw-otc-summary td.num   { text-align: right; font-variant-numeric: tabular-nums; }
+.epw-otc-summary td.pct   { color: var(--dash-ink-mute); }
+.epw-otc-summary td.delta { font-size: 11px; padding-left: 4px; }
+.epw-otc-summary td.delta.pos { color: #4a8b2c; }
+.epw-otc-summary td.delta.neg { color: #e55a00; }
+.epw-otc-summary .spacer,
+.epw-otc-summary th.spacer { width: 18px; padding: 0; }
+
+/* ---- Hover tooltip (review only; never in exported PNGs) ------------- */
+.epw-dash-tip {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  z-index: 999;
+  background: rgba(26, 26, 26, 0.92);
+  color: #fff;
+  font-family: "Open Sans", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 6px 9px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ---- Export mode: strip all chrome so screenshots are chart-only ----- */
+body.epw-export .dash-toolbar,
+body.epw-export .epw-dash-tip { display: none !important; }
+body.epw-export {
+  background: #ffffff;
+}
+body.epw-export .dash-page { padding: 0; max-width: none; }
+body.epw-export .dash-block {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+}

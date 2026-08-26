@@ -1,0 +1,17 @@
+[
+  {
+    "slug": "denver-centennial-ap",
+    "name": "Denver-Centennial AP (CO, USA)",
+    "epw": "weather_files/denver-centennial-ap.epw"
+  },
+  {
+    "slug": "chicago-ohare-intl-ap",
+    "name": "Chicago OHare Intl AP (IL, USA)",
+    "epw": "weather_files/chicago-ohare-intl-ap.epw"
+  },
+  {
+    "slug": "phoenix-sky-harbor-intl-ap",
+    "name": "Phoenix-Sky Harbor Intl AP (AZ, USA)",
+    "epw": "weather_files/phoenix-sky-harbor-intl-ap.epw"
+  }
+]

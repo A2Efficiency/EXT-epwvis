@@ -1,0 +1,13 @@
+{
+  "name": "epwvis-deck-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless render + PowerPoint build pipeline for the epwvis weather dashboard",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

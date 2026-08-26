@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>epwvis — Weather Dashboard</title>
+
+<link rel="stylesheet" href="./lib/css/epwDashboard.css?v=0.1.0" type="text/css"/>
+
+<!-- data layer: shared with the interactive viewer -->
+<script type="text/javascript" src="./lib/js/d3/d3.min.js"></script>
+<script type="text/javascript" src="./lib/js/psychrolib.js"></script>
+<script type="text/javascript" src="./lib/js/epw2json.js"></script>
+<script type="text/javascript" src="./lib/js/solarPV.js"></script>
+<script type="text/javascript" src="./lib/js/utci.js"></script>
+<script type="text/javascript" src="./lib/js/jszip/jszip.min.js"></script>
+<script type="text/javascript" src="./lib/js/epwOTC.js"></script>
+
+<!-- dashboard-only -->
+<script type="text/javascript" src="./data/usGeo.js"></script>
+<script type="text/javascript" src="./lib/js/epwLocatorMap.js"></script>
+<script type="text/javascript" src="./lib/js/epwDashboard.js"></script>
+</head>
+
+<body class="epw-dashboard">
+
+<div class="dash-toolbar" id="dashToolbar">
+  <h1>Weather Dashboard</h1>
+
+  <label for="fileInput">EPW / ZIP:</label>
+  <input type="file" id="fileInput" accept=".epw,.zip">
+
+  <label for="unitSelect">Units:</label>
+  <select id="unitSelect">
+    <option value="IP" selected>IP (°F)</option>
+    <option value="SI">SI (°C)</option>
+  </select>
+
+  <label for="hBaseInput">Heating base:</label>
+  <input type="number" id="hBaseInput" value="65" step="1">
+
+  <label for="cBaseInput">Cooling base:</label>
+  <input type="number" id="cBaseInput" value="65" step="1">
+
+  <label for="occStartInput">Occupied:</label>
+  <input type="number" id="occStartInput" value="7" step="1" min="0" max="24" title="occupied start, clock hour">
+  <span style="font-size:12px;color:#7a8075;">to</span>
+  <input type="number" id="occEndInput" value="19" step="1" min="0" max="24" title="occupied end, clock hour">
+
+  <button id="redrawBtn">Redraw</button>
+
+  <span class="dash-status" id="dashStatus">No weather file loaded</span>
+</div>
+
+<div class="dash-page" id="dashPage">
+
+  <!-- ---------- Location ---------- -->
+  <section class="dash-block" id="blockLocation">
+    <h2>Location</h2>
+    <div class="dash-loc">
+      <div class="dash-loc-map" id="locatorMap" data-chart="location-map"></div>
+      <div class="dash-loc-meta">
+        <h3 id="locName">—</h3>
+        <div class="dash-loc-sub" id="locSub"></div>
+        <div class="dash-facts" id="locFacts"></div>
+        <div class="dash-koppen" id="locKoppen"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- Temperature ---------- -->
+  <section class="dash-block" id="blockTemperature">
+    <h2>Temperature</h2>
+    <figure class="dash-figure" id="chartAnnual" data-chart="temperature-annual"></figure>
+    <figure class="dash-figure" id="chartProfiles" data-chart="temperature-daily-profile"></figure>
+  </section>
+
+  <!-- ---------- Outdoor thermal comfort ---------- -->
+  <section class="dash-block" id="blockUTCI">
+    <h2>Outdoor Thermal Comfort</h2>
+    <figure class="dash-figure" id="chartUTCICats" data-chart="utci-categories"></figure>
+    <div id="utciSummary" data-chart="utci-summary"></div>
+    <figure class="dash-figure" id="chartUTCI" data-chart="utci-stress-categories"></figure>
+  </section>
+
+  <!-- ---------- Degree days ---------- -->
+  <section class="dash-block" id="blockDegreeDays">
+    <h2>Degree Days</h2>
+    <figure class="dash-figure" id="chartDDMonthly" data-chart="degree-days-monthly"></figure>
+    <figure class="dash-figure" id="chartDDByTemp" data-chart="degree-days-by-temperature"></figure>
+  </section>
+
+</div>
+
+<script type="text/javascript">
+(function () {
+  'use strict';
+
+  var D = window.EpwDashboard;
+  var epw = null;
+
+  // ---- URL parameters -------------------------------------------------
+  function params() {
+    var out = {};
+    location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
+      if (!kv) return;
+      var i = kv.indexOf('=');
+      var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
+      out[k] = i < 0 ? '' : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
+    });
+    return out;
+  }
+  var P = params();
+
+  /** OneBuilding station names use dots for spaces: Denver-Centennial.AP. */
+  function prettyStation(name) {
+    return String(name || '').replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function status(msg, cls) {
+    var el = document.getElementById('dashStatus');
+    el.textContent = msg;
+    el.className = 'dash-status' + (cls ? ' ' + cls : '');
+  }
+
+
+  // ---- ASHRAE 169 climate zone -------------------------------------------
+  // Preferred source is the sibling .stat file that ships in every OneBuilding
+  // zip, which states the ASHRAE 169-2021 zone outright. Recomputing from the
+  // EPW is not equivalent: the A/B moisture letter needs precipitation the EPW
+  // reports too coarsely -- Denver clears the "moist" threshold by 5 mm and so
+  // computes as 5A, where the published designation is 5B.
+  var statInfo = null;
+
+  function parseStat(text) {
+    var out = {};
+    var z = text.match(/Climate Zone\s+"([^"]+)"\s*\(ASHRAE Standard\s*([^)]*)\)/i);
+    if (z) { out.zone = z[1].trim(); out.zoneStandard = z[2].trim(); }
+    // The line under the zone reads: Cool - Dry, Probable Koppen ...=BSk/H, Semiarid...
+    var d = text.match(/\n\s*-?\s*([A-Za-z][A-Za-z \-]*?)\s*,\s*Probable K\S*ppen classification\s*=\s*([^,\n]+)\s*,\s*([^\n]+)/i);
+    if (d) {
+      out.zoneName = d[1].trim();
+      out.koppenProbable = d[2].trim();
+      out.zoneDescription = d[3].trim();
+    }
+    var k = text.match(/Climate type\s+"([^"]+)"\s*\(K\S*ppen classification\)/i);
+    if (k) { out.koppen = k[1].trim(); }
+    return out;
+  }
+
+  /**
+   * Thermal-only fallback, ASHRAE 169 criteria on HDD18/CDD10 in SI.
+   * Returns the zone number as a string; the A/B/C letter is deliberately
+   * omitted because EPW precipitation cannot settle it reliably.
+   */
+  function computeZoneNumber(recordsC) {
+    var hdd = 0, cdd = 0, n = 0;
+    recordsC.forEach(function (d) {
+      if (d.dbt === null || !isFinite(d.dbt)) return;
+      hdd += Math.max(0, 18 - d.dbt) / 24;
+      cdd += Math.max(0, d.dbt - 10) / 24;
+      n++;
+    });
+    if (!n) return null;
+    var zone;
+    if      (cdd > 6000) zone = '0';
+    else if (cdd > 5000) zone = '1';
+    else if (cdd > 3500) zone = '2';
+    else if (cdd > 2500) zone = '3';
+    else if (hdd <= 2000) zone = '3';
+    else if (hdd <= 3000) zone = '4';
+    else if (hdd <= 4000) zone = '5';
+    else if (hdd <= 5000) zone = '6';
+    else if (hdd <= 7000) zone = '7';
+    else                  zone = '8';
+    return { zone: zone, hdd18: Math.round(hdd), cdd10: Math.round(cdd) };
+  }
+
+  // ---- Settings -------------------------------------------------------
+  function settings() {
+    var isIP = document.getElementById('unitSelect').value === 'IP';
+    return {
+      // null (not '') so the chart layout reclaims the title's vertical space.
+      chartTitle: function (t) { return P.titles === '0' ? null : t; },
+      isIP:   isIP,
+      unit:   isIP ? '°F' : '°C',
+      hBase:  parseFloat(document.getElementById('hBaseInput').value),
+      cBase:  parseFloat(document.getElementById('cBaseInput').value),
+      occStart: parseFloat(document.getElementById('occStartInput').value),
+      occEnd:   parseFloat(document.getElementById('occEndInput').value),
+      binSize: isIP ? 5 : 2
+    };
+  }
+
+  /** Reset the degree-day bases to the convention for the chosen unit system. */
+  function syncBasesToUnits() {
+    var isIP = document.getElementById('unitSelect').value === 'IP';
+    document.getElementById('hBaseInput').value = isIP ? 65 : 18;
+    document.getElementById('cBaseInput').value = isIP ? 65 : 18;
+  }
+
+  // ---- Location block -------------------------------------------------
+  function renderLocation(s) {
+    var lat = parseFloat(epw.latitude), lon = parseFloat(epw.longitude);
+    var elevM = parseFloat(epw.elevation);
+
+    document.getElementById('locName').textContent = prettyStation(epw.stationLocation) || '—';
+    document.getElementById('locSub').textContent =
+      [epw.state, epw.country].filter(Boolean).join(', ') +
+      (epw.source ? '  ·  ' + epw.source : '') +
+      (epw.stationID ? '  ·  WMO ' + epw.stationID : '');
+
+    var map = window.EpwLocatorMap.render('#locatorMap', {
+      lat:    lat,
+      lon:    lon,
+      label:  prettyStation(epw.stationLocation),
+      width:  460,
+      height: 280
+    });
+
+    var elevTxt = s.isIP
+      ? Math.round(elevM * 3.28084).toLocaleString() + ' ft'
+      : Math.round(elevM).toLocaleString() + ' m';
+    var tz = parseFloat(epw.timeZone);
+
+    var facts = [
+      { k: 'Latitude',  v: lat.toFixed(3) + '° ' + (lat >= 0 ? 'N' : 'S') },
+      { k: 'Longitude', v: Math.abs(lon).toFixed(3) + '° ' + (lon >= 0 ? 'E' : 'W') },
+      { k: 'Elevation', v: elevTxt },
+      { k: 'Time zone', v: 'UTC' + (tz >= 0 ? '+' : '') + tz }
+    ];
+    if (map.stateName) facts.push({ k: 'State', v: map.stateName });
+
+    // ASHRAE zone: authoritative from .stat, otherwise computed and marked so.
+    var zoneTxt = '', zoneSrc = '';
+    if (statInfo && statInfo.zone) {
+      zoneTxt = statInfo.zone;
+      zoneSrc = 'ASHRAE ' + (statInfo.zoneStandard || '169');
+    } else {
+      var cz = computeZoneNumber(D.buildRecords(epw, false));
+      if (cz) { zoneTxt = cz.zone + ' (computed)'; zoneSrc = 'from this weather file'; }
+    }
+    if (zoneTxt) facts.push({ k: 'ASHRAE zone', v: zoneTxt });
+
+    document.getElementById('locFacts').innerHTML = facts.map(function (f) {
+      return '<div class="dash-fact"><div class="k">' + f.k + '</div>' +
+             '<div class="v">' + f.v + '</div></div>';
+    }).join('');
+
+    // Köppen classification, straight from the shared parser.
+    var kEl = document.getElementById('locKoppen');
+    var k = null;
+    try { k = epw.koppenClassification(); } catch (e) { k = null; }
+
+    // Structured metadata for the headless renderer. Scraping textContent here
+    // would silently join the Köppen name and description across their <br>.
+    window.__dashboardMeta = {
+      station:   prettyStation(epw.stationLocation),
+      subtitle:  document.getElementById('locSub').textContent,
+      state:     epw.state || '',
+      country:   epw.country || '',
+      source:    epw.source || '',
+      wmo:       epw.stationID || '',
+      latitude:  facts[0].v,
+      longitude: facts[1].v,
+      elevation: facts[2].v,
+      timezone:  facts[3].v,
+      stateName: map.stateName || '',
+      koppenCode:        (statInfo && statInfo.koppen) ? statInfo.koppen
+                          : ((k && k.code !== '?') ? k.code : ''),
+      koppenName:        (statInfo && statInfo.zoneName) ? statInfo.zoneName
+                          : ((k && k.code !== '?') ? k.name : ''),
+      koppenDescription: (statInfo && statInfo.zoneDescription) ? statInfo.zoneDescription
+                          : ((k && k.code !== '?') ? k.description : ''),
+      ashraeZone:        zoneTxt,
+      ashraeZoneSource:  zoneSrc
+    };
+    if (statInfo && statInfo.koppen) {
+      // The .stat Koppen is derived from ASHRAE design-condition data and is
+      // more trustworthy than the EPW-precipitation route (which calls Denver
+      // Dfa where the .stat correctly says BSk).
+      var extra = statInfo.zoneName
+        ? statInfo.zoneName + (statInfo.zoneDescription ? ' \u2014 ' + statInfo.zoneDescription : '')
+        : '';
+      kEl.innerHTML = 'K\u00f6ppen <b>' + statInfo.koppen + '</b>'
+        + (zoneTxt ? ' \u00b7 ASHRAE zone <b>' + zoneTxt + '</b>' : '')
+        + (extra ? '<br>' + extra : '');
+    } else if (!k) {
+      kEl.textContent = '';
+    } else if (k.code === '?') {
+      kEl.innerHTML = 'Köppen classification: insufficient precipitation data in this EPW file.';
+    } else {
+      var esc = function (t) {
+        return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      };
+      kEl.innerHTML = 'Köppen <b>' + esc(k.code) + '</b> — <b>' + esc(k.name) + '</b><br>' +
+                      esc(k.description);
+    }
+  }
+
+  // ---- Charts ---------------------------------------------------------
+  function renderTemperature(s) {
+    var records = D.buildRecords(epw, s.isIP);
+
+    D.drawAnnualTimeseries('#chartAnnual', D.dailyStats(records), {
+      width: 960, height: 300, unit: s.unit,
+      title: s.chartTitle('Dry-Bulb Temperature \u2014 Annual'),
+      subtitle: 'Daily minimum, mean and maximum across the year'
+    });
+
+    // Page 1 characterises the whole year, so no occupancy ghost here.
+    D.drawDailyProfiles('#chartProfiles', { all: D.hourlyProfileByMonth(records) }, {
+      width: 1180, height: 300, unit: s.unit,
+      yLabel: 'Dry Bulb Temperature (' + s.unit + ')',
+      title: s.chartTitle('Average Daily Profile by Month'),
+      footer: { selected: records.length, total: records.length }
+    });
+    return records;
+  }
+
+  function renderDegreeDays(s, records) {
+    var unit = s.isIP ? '\u00b0F\u00b7day' : '\u00b0C\u00b7day';
+    var occupied = D.occupiedFilter(records, s.occStart, s.occEnd);
+    var occLabel = 'Occupied hours ' + s.occStart + ':00\u2013' + s.occEnd + ':00; '
+                 + 'pale bars are all 8,760 hours';
+    var footer = { selected: occupied.length, total: records.length };
+
+    D.drawMonthlyDegreeDays('#chartDDMonthly', {
+      all:      D.monthlyDegreeDays(records,  s.hBase, s.cBase),
+      filtered: D.monthlyDegreeDays(occupied, s.hBase, s.cBase)
+    }, {
+      width: 1000, height: 355, unit: unit,
+      title: s.chartTitle('Degree Days by Month'),
+      subtitle: 'Base ' + s.hBase + s.unit + ' heating \u00b7 ' + s.cBase + s.unit
+              + ' cooling \u00b7 ' + occLabel
+    });
+
+    D.drawDegreeDaysByTemp('#chartDDByTemp', {
+      all:      D.degreeDaysByTemp(records,  s.hBase, s.cBase, s.binSize),
+      filtered: D.degreeDaysByTemp(occupied, s.hBase, s.cBase, s.binSize)
+    }, {
+      width: 1100, height: 370, unit: s.unit, ddUnit: unit,
+      hBase: s.hBase, cBase: s.cBase, footer: footer,
+      title: s.chartTitle('Degree Days by Temperature Bin ('
+             + s.binSize + s.unit + ' bins)'),
+      subtitle: 'Where in the temperature range the load accumulates \u00b7 ' + occLabel
+    });
+
+    // Totals the deck prints as headline numbers.
+    var occMonthly = D.monthlyDegreeDays(occupied, s.hBase, s.cBase);
+    var allMonthly = D.monthlyDegreeDays(records,  s.hBase, s.cBase);
+    function sum(arr, k) { return arr.reduce(function (a, d) { return a + d[k]; }, 0); }
+    window.__dashboardTotals = {
+      unit:           unit,
+      hBase:          s.hBase,
+      cBase:          s.cBase,
+      occStart:       s.occStart,
+      occEnd:         s.occEnd,
+      occupiedHours:  occupied.length,
+      totalHours:     records.length,
+      hddOccupied:    Math.round(sum(occMonthly, 'hdd')),
+      cddOccupied:    Math.round(sum(occMonthly, 'cdd')),
+      hddAll:         Math.round(sum(allMonthly, 'hdd')),
+      cddAll:         Math.round(sum(allMonthly, 'cdd'))
+    };
+  }
+
+  function renderUTCI(s) {
+    var cases  = window.EpwOTC.defaultCases();
+    var idx    = window.EpwOTC.allIndices(epw);
+    var counts = cases.map(function (c) {
+      return window.EpwOTC.buildCounts(window.EpwOTC.computeAllHours(epw, c), idx);
+    });
+
+    // Base case only -- page 1 characterises the climate, not the strategies.
+    D.drawUTCICategoryBars('#chartUTCICats', counts[0], {
+      width: 470, height: 250,
+      title: s.chartTitle('Outdoor Comfort \u2014 UTCI Hours')
+    });
+
+    D.drawUTCISummary('#utciSummary', cases, counts);
+    D.drawUTCIChart('#chartUTCI', cases, counts, {
+      width: 960, height: 440,
+      title: s.chartTitle('Outdoor Thermal Comfort — UTCI Stress Categories'),
+      subtitle: 'Annual hours by stress category for each mitigation strategy'
+    });
+  }
+
+  // ---- Orchestration --------------------------------------------------
+  function renderAll() {
+    if (!epw) return;
+    window.__dashboardReady = false;
+    var s = settings();
+
+    renderLocation(s);
+    var records = renderTemperature(s);
+    renderDegreeDays(s, records);
+
+    // UTCI runs the full polynomial ~5x8760 times, so let the page paint the
+    // fast charts first and finish the expensive one on the next tick.
+    status('Computing UTCI strategy cases…', null);
+    setTimeout(function () {
+      try {
+        renderUTCI(s);
+        status('Loaded: ' + prettyStation(epw.stationLocation), 'ok');
+      } catch (err) {
+        status('UTCI failed: ' + err.message, 'error');
+        console.error(err);
+      }
+      window.__dashboardReady = true;
+    }, 30);
+  }
+
+  // ---- Loading --------------------------------------------------------
+  function loadEPWText(text, label) {
+    try {
+      epw = epw2json(text);
+    } catch (err) {
+      status('Could not parse EPW: ' + err.message, 'error');
+      window.__dashboardError = String(err.message);
+      return;
+    }
+    document.title = 'epwvis — ' + (prettyStation(epw.stationLocation) || label || 'Weather Dashboard');
+    renderAll();
+  }
+
+  /** Accept either a raw .epw or a OneBuilding-style .zip containing one. */
+  function loadArrayBuffer(buf, name) {
+    if (/\.zip$/i.test(name)) {
+      if (typeof JSZip === 'undefined') {
+        status('JSZip not available for .zip input', 'error');
+        return;
+      }
+      JSZip.loadAsync(buf).then(function (zip) {
+        var epwName = null;
+        zip.forEach(function (p) {
+          if (!epwName && /\.epw$/i.test(p)) epwName = p;
+        });
+        if (!epwName) throw new Error('no .epw inside ' + name);
+        return zip.file(epwName).async('string');
+      }).then(function (txt) {
+        loadEPWText(txt, name);
+      }).catch(function (err) {
+        status('Zip read failed: ' + err.message, 'error');
+        window.__dashboardError = String(err.message);
+      });
+    } else {
+      loadEPWText(new TextDecoder('utf-8').decode(buf), name);
+    }
+  }
+
+  function loadFromUrl(url) {
+    status('Loading ' + url + '…');
+    // Best-effort sibling .stat; absence is fine, the zone is then computed.
+    var statUrl = url.replace(/\.epw$/i, '.stat');
+    var statReq = (statUrl === url) ? Promise.resolve(null) :
+      fetch(statUrl)
+        .then(function (r) { return r.ok ? r.arrayBuffer() : null; })
+        .catch(function () { return null; });
+
+    statReq.then(function (buf) {
+      // .stat files are cp1252/latin-1, not UTF-8.
+      statInfo = buf ? parseStat(new TextDecoder('windows-1252').decode(buf)) : null;
+      return fetch(url);
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      loadArrayBuffer(buf, url);
+    }).catch(function (err) {
+      status('Load failed: ' + err.message, 'error');
+      window.__dashboardError = String(err.message);
+    });
+  }
+
+  // ---- Wiring ---------------------------------------------------------
+  document.getElementById('fileInput').addEventListener('change', function (e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    status('Reading ' + f.name + '…');
+    var fr = new FileReader();
+    fr.onload = function () { loadArrayBuffer(fr.result, f.name); };
+    fr.readAsArrayBuffer(f);
+  });
+
+  document.getElementById('unitSelect').addEventListener('change', function () {
+    syncBasesToUnits();
+    renderAll();
+  });
+  document.getElementById('redrawBtn').addEventListener('click', renderAll);
+  ['hBaseInput', 'cBaseInput', 'occStartInput', 'occEndInput'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', renderAll);
+  });
+
+  // Apply URL parameters: ?epw=<path>&units=IP|SI&hbase=&cbase=&export=1
+  if (P.units === 'SI' || P.units === 'IP') {
+    document.getElementById('unitSelect').value = P.units;
+    syncBasesToUnits();
+  }
+  if (P.hbase) document.getElementById('hBaseInput').value = P.hbase;
+  if (P.cbase) document.getElementById('cBaseInput').value = P.cbase;
+  if (P.occstart) document.getElementById('occStartInput').value = P.occstart;
+  if (P.occend) document.getElementById('occEndInput').value = P.occend;
+  if (P.export === '1') document.body.classList.add('epw-export');
+
+  if (P.epw) {
+    loadFromUrl(P.epw);
+  } else {
+    status('Choose an EPW or ZIP file to begin');
+  }
+
+  // Exposed for the headless PNG renderer.
+  window.__dashboardRenderAll = renderAll;
+})();
+</script>
+</body>
+</html>
