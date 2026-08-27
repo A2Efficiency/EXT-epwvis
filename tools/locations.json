@@ -15,9 +15,9 @@
     "epw": "weather_files/denver-intl-ap.epw"
   },
   {
-    "slug": "great-falls-intl-ap",
-    "name": "Great Falls Intl AP (MT, USA)",
-    "epw": "weather_files/great-falls-intl-ap.epw"
+    "slug": "great-falls",
+    "name": "Great Falls (MT, USA)",
+    "epw": "weather_files/great-falls.epw"
   },
   {
     "slug": "seattle-tacoma-intl-ap",

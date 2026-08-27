@@ -132,19 +132,68 @@
   // computes as 5A, where the published designation is 5B.
   var statInfo = null;
 
+  /**
+   * Does the .stat's "Probable Koppen classification" agree with its own
+   * "Climate type" line?
+   *
+   * The probable-Koppen field is a slash list of abbreviated codes -- "BSk/H",
+   * "BSk/BWh/H", "Cb", "Dfa" -- and OneBuilding abbreviates: Seattle's "Cb"
+   * stands for the marine C climates and is consistent with a Climate type of
+   * "Csb". So a token agrees with the code when it shares the first letter and
+   * its remaining letters appear in order within the code. That accepts
+   * Cb ~ Csb and BSk ~ BSk, and rejects Cfb vs BSk and Dfa vs Dsa.
+   */
+  function koppenAgrees(code, probable) {
+    if (!code || !probable) return false;
+    return probable.split('/').some(function (tok) {
+      tok  = tok.trim();
+      if (!tok) return false;
+      if (tok.toLowerCase() === code.toLowerCase()) return true;
+      if (tok[0].toLowerCase() !== code[0].toLowerCase()) return false;
+      var i = 1;
+      for (var j = 1; j < tok.length; j++) {
+        while (i < code.length && code[i].toLowerCase() !== tok[j].toLowerCase()) i++;
+        if (i >= code.length) return false;
+        i++;
+      }
+      return true;
+    });
+  }
+
   function parseStat(text) {
     var out = {};
-    var z = text.match(/Climate Zone\s+"([^"]+)"\s*\(ASHRAE Standard\s*([^)]*)\)/i);
-    if (z) { out.zone = z[1].trim(); out.zoneStandard = z[2].trim(); }
+    // Two spellings appear in the wild. Stations with published ASHRAE design
+    // conditions read (ASHRAE Standard 169-2021); stations without them -- Great
+    // Falls, for one -- read (ASHRAE classification) and the .stat notes the
+    // zone was derived algorithmically from the weather data. Both beat our own
+    // thermal-only fallback, but only the first is a published designation, so
+    // they are captured separately and labelled differently downstream.
+    var z = text.match(/Climate Zone\s+"([^"]+)"\s*\(ASHRAE\s+([^)]*)\)/i);
+    if (z) {
+      out.zone = z[1].trim();
+      var qual = z[2].trim();
+      var std  = qual.match(/^Standard\s+(.*)$/i);
+      out.zoneStandard = std ? std[1].trim() : '';
+      out.zonePublished = !!std;
+    }
     // The line under the zone reads: Cool - Dry, Probable Koppen ...=BSk/H, Semiarid...
+    // Note what these three fields actually are: an ASHRAE *zone* name, the
+    // Koppen code ASHRAE considers probable, and a description of that probable
+    // Koppen code -- not of the "Climate type" code below.
     var d = text.match(/\n\s*-?\s*([A-Za-z][A-Za-z \-]*?)\s*,\s*Probable K\S*ppen classification\s*=\s*([^,\n]+)\s*,\s*([^\n]+)/i);
     if (d) {
       out.zoneName = d[1].trim();
       out.koppenProbable = d[2].trim();
-      out.zoneDescription = d[3].trim();
+      out.koppenProbableDescription = d[3].trim();
     }
     var k = text.match(/Climate type\s+"([^"]+)"\s*\(K\S*ppen classification\)/i);
     if (k) { out.koppen = k[1].trim(); }
+    // Only carry the description over to the Climate type code when the two
+    // codes agree. Bend is "BSk" with a probable Cfb "Marine (Cool Summer)" and
+    // Great Falls is "BSk" with a probable Dfa "Humid Continental (Warm
+    // Summer)"; pairing those would print a description of a different climate.
+    out.koppenAgrees = koppenAgrees(out.koppen, out.koppenProbable);
+    out.koppenDescription = out.koppenAgrees ? out.koppenProbableDescription : '';
     return out;
   }
 
@@ -231,16 +280,24 @@
     ];
     if (map.stateName) facts.push({ k: 'State', v: map.stateName });
 
-    // ASHRAE zone: authoritative from .stat, otherwise computed and marked so.
-    var zoneTxt = '', zoneSrc = '';
+    // ASHRAE zone, in three tiers of provenance, each labelled for what it is:
+    //   published in the .stat's design conditions -> bare, e.g. "5B"
+    //   derived in the .stat from the weather data -> "5A (derived)"
+    //   our own thermal-only fallback              -> "6 (computed)"
+    var zoneTxt = '', zoneSrc = '', zoneName = '';
     if (statInfo && statInfo.zone) {
-      zoneTxt = statInfo.zone;
-      zoneSrc = 'ASHRAE ' + (statInfo.zoneStandard || '169');
+      zoneTxt  = statInfo.zone + (statInfo.zonePublished ? '' : ' (derived)');
+      zoneSrc  = statInfo.zonePublished
+        ? 'ASHRAE ' + (statInfo.zoneStandard || '169')
+        : 'derived in .stat from this weather file';
+      zoneName = statInfo.zoneName || '';
     } else {
       var cz = computeZoneNumber(D.buildRecords(epw, false));
       if (cz) { zoneTxt = cz.zone + ' (computed)'; zoneSrc = 'from this weather file'; }
     }
-    if (zoneTxt) facts.push({ k: 'ASHRAE zone', v: zoneTxt });
+    // The zone name ("Cool - Dry") belongs to the ASHRAE zone, not to Koppen.
+    var zoneHeading = zoneTxt + (zoneName ? ' · ' + zoneName : '');
+    if (zoneTxt) facts.push({ k: 'ASHRAE zone', v: zoneHeading });
 
     document.getElementById('locFacts').innerHTML = facts.map(function (f) {
       return '<div class="dash-fact"><div class="k">' + f.k + '</div>' +
@@ -268,23 +325,31 @@
       stateName: map.stateName || '',
       koppenCode:        (statInfo && statInfo.koppen) ? statInfo.koppen
                           : ((k && k.code !== '?') ? k.code : ''),
-      koppenName:        (statInfo && statInfo.zoneName) ? statInfo.zoneName
+      // Deliberately blank when the .stat is the source: the .stat carries no
+      // name for its Koppen code, only for the ASHRAE zone, which now rides on
+      // ashraeZone instead of being mislabelled as the Koppen name.
+      koppenName:        (statInfo && statInfo.koppen) ? ''
                           : ((k && k.code !== '?') ? k.name : ''),
-      koppenDescription: (statInfo && statInfo.zoneDescription) ? statInfo.zoneDescription
+      koppenDescription: (statInfo && statInfo.koppen)
+                          ? (statInfo.koppenDescription || '')
                           : ((k && k.code !== '?') ? k.description : ''),
-      ashraeZone:        zoneTxt,
-      ashraeZoneSource:  zoneSrc
+      ashraeZone:        zoneHeading,
+      ashraeZoneCode:    zoneTxt,
+      ashraeZoneName:    zoneName,
+      ashraeZoneSource:  zoneSrc,
+      // Kept for traceability: what the .stat's ASHRAE line claimed, and
+      // whether it agreed with the Climate type line.
+      koppenProbable:            (statInfo && statInfo.koppenProbable) || '',
+      koppenProbableDescription: (statInfo && statInfo.koppenProbableDescription) || '',
+      koppenProbableAgrees:      !!(statInfo && statInfo.koppenAgrees)
     };
     if (statInfo && statInfo.koppen) {
       // The .stat Koppen is derived from ASHRAE design-condition data and is
       // more trustworthy than the EPW-precipitation route (which calls Denver
       // Dfa where the .stat correctly says BSk).
-      var extra = statInfo.zoneName
-        ? statInfo.zoneName + (statInfo.zoneDescription ? ' \u2014 ' + statInfo.zoneDescription : '')
-        : '';
       kEl.innerHTML = 'K\u00f6ppen <b>' + statInfo.koppen + '</b>'
-        + (zoneTxt ? ' \u00b7 ASHRAE zone <b>' + zoneTxt + '</b>' : '')
-        + (extra ? '<br>' + extra : '');
+        + (zoneTxt ? ' \u00b7 ASHRAE zone <b>' + zoneHeading + '</b>' : '')
+        + (statInfo.koppenDescription ? '<br>' + statInfo.koppenDescription : '');
     } else if (!k) {
       kEl.textContent = '';
     } else if (k.code === '?') {
