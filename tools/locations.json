@@ -1,17 +1,32 @@
 [
   {
-    "slug": "denver-centennial-ap",
-    "name": "Denver-Centennial AP (CO, USA)",
-    "epw": "weather_files/denver-centennial-ap.epw"
+    "slug": "bend-muni-ap",
+    "name": "Bend Muni AP (OR, USA)",
+    "epw": "weather_files/bend-muni-ap.epw"
   },
   {
-    "slug": "chicago-ohare-intl-ap",
-    "name": "Chicago OHare Intl AP (IL, USA)",
-    "epw": "weather_files/chicago-ohare-intl-ap.epw"
+    "slug": "boise-ap-gowen-field-angb",
+    "name": "Boise AP-Gowen Field ANGB (ID, USA)",
+    "epw": "weather_files/boise-ap-gowen-field-angb.epw"
   },
   {
-    "slug": "phoenix-sky-harbor-intl-ap",
-    "name": "Phoenix-Sky Harbor Intl AP (AZ, USA)",
-    "epw": "weather_files/phoenix-sky-harbor-intl-ap.epw"
+    "slug": "denver-intl-ap",
+    "name": "Denver Intl AP (CO, USA)",
+    "epw": "weather_files/denver-intl-ap.epw"
+  },
+  {
+    "slug": "great-falls-intl-ap",
+    "name": "Great Falls Intl AP (MT, USA)",
+    "epw": "weather_files/great-falls-intl-ap.epw"
+  },
+  {
+    "slug": "seattle-tacoma-intl-ap",
+    "name": "Seattle-Tacoma Intl AP (WA, USA)",
+    "epw": "weather_files/seattle-tacoma-intl-ap.epw"
+  },
+  {
+    "slug": "spokane-intl-ap",
+    "name": "Spokane Intl AP (WA, USA)",
+    "epw": "weather_files/spokane-intl-ap.epw"
   }
 ]
