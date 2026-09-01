@@ -75,6 +75,12 @@
     <figure class="dash-figure" id="chartProfiles" data-chart="temperature-daily-profile"></figure>
   </section>
 
+  <!-- ---------- Humidity ---------- -->
+  <section class="dash-block" id="blockHumidity">
+    <h2>Humidity</h2>
+    <figure class="dash-figure" id="chartDewProfiles" data-chart="dewpoint-daily-profile"></figure>
+  </section>
+
   <!-- ---------- Outdoor thermal comfort ---------- -->
   <section class="dash-block" id="blockUTCI">
     <h2>Outdoor Thermal Comfort</h2>
@@ -318,6 +324,23 @@
     return records;
   }
 
+  /**
+   * Dew point gets the same twelve-panel treatment as dry bulb, in the same
+   * unit system, so the two strips can be read against each other: where the
+   * dew-point cloud stays flat while the dry-bulb cloud swings, the daily
+   * range is sensible heat only.
+   */
+  function renderHumidity(s, records) {
+    D.drawDailyProfiles('#chartDewProfiles', { all: D.hourlyProfileByMonth(records, 'dpt') }, {
+      width: 1180, height: 300, unit: s.unit,
+      yLabel: 'Dew Point Temperature (' + s.unit + ')',
+      bandColor: D.PALETTE.dewBand,
+      lineColor: D.PALETTE.dewLine,
+      title: s.chartTitle('Average Daily Dew Point Profile by Month'),
+      footer: { selected: records.length, total: records.length }
+    });
+  }
+
   function renderDegreeDays(s, records) {
     var unit = s.isIP ? '\u00b0F\u00b7day' : '\u00b0C\u00b7day';
     var occupied = D.occupiedFilter(records, s.occStart, s.occEnd);
@@ -394,6 +417,7 @@
 
     renderLocation(s);
     var records = renderTemperature(s);
+    renderHumidity(s, records);
     renderDegreeDays(s, records);
 
     // UTCI runs the full polynomial ~5x8760 times, so let the page paint the

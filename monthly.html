@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>epwvis — Monthly Profiles</title>
+
+<link rel="stylesheet" href="./lib/css/epwDashboard.css?v=0.1.0" type="text/css"/>
+
+<!-- data layer: shared with the interactive viewer -->
+<script type="text/javascript" src="./lib/js/d3/d3.min.js"></script>
+<script type="text/javascript" src="./lib/js/psychrolib.js"></script>
+<script type="text/javascript" src="./lib/js/epw2json.js"></script>
+<script type="text/javascript" src="./lib/js/solarPV.js"></script>
+<script type="text/javascript" src="./lib/js/jszip/jszip.min.js"></script>
+
+<!-- dashboard chart module (shared with dashboard.html) -->
+<script type="text/javascript" src="./lib/js/epwDashboard.js"></script>
+</head>
+
+<body class="epw-dashboard">
+
+<div class="dash-toolbar" id="dashToolbar">
+  <h1>Monthly Profiles</h1>
+
+  <label for="fileInput">EPW / ZIP:</label>
+  <input type="file" id="fileInput" accept=".epw,.zip">
+
+  <label for="unitSelect">Units:</label>
+  <select id="unitSelect">
+    <option value="IP" selected>IP (°F)</option>
+    <option value="SI">SI (°C)</option>
+  </select>
+
+  <label for="dayTypeSelect">Days:</label>
+  <select id="dayTypeSelect" title="which days of the week to include">
+    <option value="all" selected>All days</option>
+    <option value="weekday">Weekdays only (Mon–Fri)</option>
+    <option value="weekend">Weekends only — exclude weekdays</option>
+  </select>
+
+  <span class="dash-status" id="dashStatus">No weather file loaded</span>
+</div>
+
+<div class="dash-page" id="dashPage">
+
+  <!-- ---------- Header ---------- -->
+  <section class="dash-block" id="blockHeader">
+    <h2>Weather File</h2>
+    <h3 id="locName" style="font-size:21px;margin:0 0 2px 0;letter-spacing:-0.01em;">—</h3>
+    <div class="dash-loc-sub" id="locSub"></div>
+    <div class="dash-note" id="dayTypeNote"></div>
+  </section>
+
+  <!-- ---------- Profile clouds ---------- -->
+  <section class="dash-block" id="blockProfiles">
+    <h2>Average Daily Profile by Month</h2>
+    <figure class="dash-figure" id="chartProfiles" data-chart="temperature-daily-profile"></figure>
+    <figure class="dash-figure" id="chartDewProfiles" data-chart="dewpoint-daily-profile"></figure>
+  </section>
+
+  <!-- ---------- Representative days ---------- -->
+  <section class="dash-block" id="blockRepDays">
+    <h2>Representative Day of Each Month</h2>
+
+    <div class="dash-controls">
+      <label for="repVarSelect">Rank days by:</label>
+      <select id="repVarSelect">
+        <option value="dpt" selected>Dew point</option>
+        <option value="dbt">Dry bulb</option>
+      </select>
+      <select id="repBasisSelect">
+        <option value="mean" selected>daily mean</option>
+        <option value="max">daily maximum</option>
+        <option value="min">daily minimum</option>
+      </select>
+      <span class="sep"></span>
+      <label for="repKindSelect">Show:</label>
+      <select id="repKindSelect">
+        <option value="peak">Peak day</option>
+        <option value="median" selected>Median day</option>
+        <option value="low">Low day</option>
+      </select>
+    </div>
+
+    <figure class="dash-figure" id="chartRepDays" data-chart="representative-days"></figure>
+
+    <div class="dash-rep">
+      <div class="dash-rep-table">
+        <table class="dash-table" id="repTable"></table>
+      </div>
+      <div class="dash-rep-detail">
+        <figure class="dash-figure" id="chartDayDetail" data-chart="day-detail"></figure>
+      </div>
+    </div>
+
+    <div class="dash-note" id="repNote"></div>
+  </section>
+
+</div>
+
+<script type="text/javascript">
+(function () {
+  'use strict';
+
+  var D = window.EpwDashboard;
+  var epw = null;
+
+  // Everything downstream of a load, kept so the selectors can redraw without
+  // reparsing the file.
+  var state = {
+    records:  null,   // hourly, in display units, all days
+    filtered: null,   // hourly, day-type filtered
+    days:     null,   // per-day series from `filtered`
+    reps:     null,   // 12 x {low, median, peak}
+    selected: null,   // the day in the detail chart
+    selKind:  null    // which of low/median/peak that day came from
+  };
+
+  /** ES5 shallow merge; this page stays on the same dialect as the lib. */
+  function merge() {
+    var out = {};
+    for (var i = 0; i < arguments.length; i++) {
+      var src = arguments[i] || {};
+      Object.keys(src).forEach(function (k) { out[k] = src[k]; });
+    }
+    return out;
+  }
+
+  // ---- URL parameters -------------------------------------------------
+  function params() {
+    var out = {};
+    location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
+      if (!kv) return;
+      var i = kv.indexOf('=');
+      var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
+      out[k] = i < 0 ? '' : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
+    });
+    return out;
+  }
+  var P = params();
+
+  /** OneBuilding station names use dots for spaces: Denver-Centennial.AP. */
+  function prettyStation(name) {
+    return String(name || '').replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function status(msg, cls) {
+    var el = document.getElementById('dashStatus');
+    el.textContent = msg;
+    el.className = 'dash-status' + (cls ? ' ' + cls : '');
+  }
+
+  function val(id) { return document.getElementById(id).value; }
+
+  function settings() {
+    var isIP = val('unitSelect') === 'IP';
+    return {
+      chartTitle: function (t) { return P.titles === '0' ? null : t; },
+      isIP:     isIP,
+      unit:     isIP ? '°F' : '°C',
+      dayType:  val('dayTypeSelect'),
+      repVar:   val('repVarSelect'),
+      repBasis: val('repBasisSelect'),
+      repKind:  val('repKindSelect')
+    };
+  }
+
+  var VAR_LABEL   = { dpt: 'dew point',    dbt: 'dry bulb' };
+  var BASIS_LABEL = { mean: 'daily mean',  max: 'daily maximum', min: 'daily minimum' };
+  var KIND_LABEL  = { low: 'Low',          median: 'Median',     peak: 'Peak' };
+
+  // ---- Profile clouds -------------------------------------------------
+  //
+  // When a day-type filter is on, the filtered cloud is drawn over a grey
+  // all-days ghost -- the same device the deck uses for occupied hours -- so
+  // you can see whether the weekend subset actually differs from the year or
+  // is just a thinner sample of it.
+  function renderProfiles(s) {
+    var filtering = s.dayType !== 'all';
+    var frontLabel = D.DAY_TYPE_LABEL[s.dayType] + ' (min-max + avg)';
+
+    function profiles(key) {
+      var p = { all: D.hourlyProfileByMonth(state.records, key) };
+      if (filtering) p.filtered = D.hourlyProfileByMonth(state.filtered, key);
+      return p;
+    }
+    var common = {
+      width: 1180, height: 300, unit: s.unit,
+      ghostLabel: 'All days (min-max + avg)',
+      frontLabel: frontLabel,
+      footer: { selected: state.filtered.length, total: state.records.length }
+    };
+
+    D.drawDailyProfiles('#chartProfiles', profiles('dbt'), merge(common, {
+      yLabel: 'Dry Bulb Temperature (' + s.unit + ')',
+      title:  s.chartTitle('Average Daily Dry Bulb Profile by Month')
+    }));
+
+    D.drawDailyProfiles('#chartDewProfiles', profiles('dpt'), merge(common, {
+      yLabel:    'Dew Point Temperature (' + s.unit + ')',
+      bandColor: D.PALETTE.dewBand,
+      lineColor: D.PALETTE.dewLine,
+      title:     s.chartTitle('Average Daily Dew Point Profile by Month')
+    }));
+  }
+
+  // ---- Representative days --------------------------------------------
+  function renderRepDays(s) {
+    state.reps = D.monthlyRepresentativeDays(state.days, s.repVar, s.repBasis);
+    var picks = state.reps.map(function (r) { return r[s.repKind]; });
+
+    // Keep the detail chart on the same month when a selector changes, rather
+    // than snapping back to January.
+    var keepMonth = state.selected ? state.selected.month : 7;
+    state.selected = picks[keepMonth - 1] ||
+                     picks.filter(function (p) { return p; })[0] || null;
+    state.selKind = s.repKind;
+
+    var basis = BASIS_LABEL[s.repBasis] + ' ' + VAR_LABEL[s.repVar];
+    D.drawRepresentativeDays('#chartRepDays', picks, {
+      width: 1180, height: 520, unit: s.unit,
+      yLabel: 'Temperature (' + s.unit + ')',
+      title: s.chartTitle(KIND_LABEL[s.repKind] + ' ' + VAR_LABEL[s.repVar] +
+                          ' day of each month'),
+      subtitle: 'The one real day per month whose ' + basis + ' is the ' +
+                (s.repKind === 'median' ? 'median' : s.repKind === 'peak' ? 'highest' : 'lowest') +
+                ' of that month · ' + D.DAY_TYPE_LABEL[s.dayType],
+      onSelect: function (day) { selectDay(day, s); }
+    });
+
+    renderRepTable(s);
+    renderDetail(s);
+
+    var anyMonth = state.reps.filter(function (r) { return r.n; })[0];
+    document.getElementById('repNote').innerHTML =
+      '<b>How the day is picked.</b> Every day in the month is ranked by its ' +
+      basis + ', then the low, median and peak are read off that ranking. ' +
+      'Each pick is a real day from the file, not an averaged composite, so the ' +
+      'plot above is the actual hour-by-hour weather of a date you can point at. ' +
+      'On an even-length month the median takes the lower of the two middle days. ' +
+      (anyMonth ? 'January here ranks ' + state.reps[0].n + ' days.' : '');
+  }
+
+  function renderRepTable(s) {
+    var u = s.unit;
+    var f1 = d3.format(',.1f');
+    var head = '<tr><th>Month</th><th>Days</th>' +
+               '<th>Low ' + VAR_LABEL[s.repVar] + '</th>' +
+               '<th>Median ' + VAR_LABEL[s.repVar] + '</th>' +
+               '<th>Peak ' + VAR_LABEL[s.repVar] + '</th></tr>';
+
+    var rows = state.reps.map(function (r, i) {
+      function cell(kind) {
+        var d = r[kind];
+        if (!d) return '<td>—</td>';
+        var sel = (state.selected && state.selected.dayOfYear === d.dayOfYear &&
+                   kind === state.selKind) ? ' sel' : '';
+        return '<td class="pick' + sel + '" data-month="' + r.month + '" data-kind="' + kind + '">' +
+               '<span class="d">' + D.MONTHS[d.month - 1] + ' ' + d.day + ' ' +
+               D.DAY_ABBR[d.dow] + '</span> ' +
+               '<span class="v">' + f1(d.value) + u + '</span></td>';
+      }
+      return '<tr><td class="mon">' + D.MONTH_FULL[i] + '</td>' +
+             '<td class="num">' + r.n + '</td>' +
+             cell('low') + cell('median') + cell('peak') + '</tr>';
+    }).join('');
+
+    var t = document.getElementById('repTable');
+    t.innerHTML = head + rows;
+
+    // Clicking any cell puts that exact day in the detail chart, so the table
+    // is a picker and not just a readout.
+    Array.prototype.forEach.call(t.querySelectorAll('td.pick'), function (td) {
+      td.addEventListener('click', function () {
+        var kind = td.getAttribute('data-kind');
+        var r = state.reps[parseInt(td.getAttribute('data-month'), 10) - 1];
+        var d = r[kind];
+        if (d) selectDay(d, s, kind);
+      });
+    });
+  }
+
+  function selectDay(day, s, kind) {
+    state.selected = day;
+    state.selKind = kind || s.repKind;
+    renderDetail(s);
+    renderRepTable(s);
+  }
+
+  function renderDetail(s) {
+    var d = state.selected;
+    D.drawDayDetail('#chartDayDetail', d, {
+      width: 560, height: 320, unit: s.unit,
+      yLabel: 'Temperature (' + s.unit + ')',
+      title: s.chartTitle(d ? D.MONTH_FULL[d.month - 1] + ' ' + d.day + ', ' +
+                              D.DAY_NAMES[d.dow] : 'No day selected'),
+      subtitle: d ? 'Rank ' + d.rank + ' of ' + d.of + ' by ' +
+                    BASIS_LABEL[s.repBasis] + ' ' + VAR_LABEL[s.repVar] +
+                    ' · ' + d3.format(',.1f')(d.value) + s.unit
+                  : null
+    });
+  }
+
+  // ---- Orchestration --------------------------------------------------
+  function renderAll() {
+    if (!epw) return;
+    window.__monthlyReady = false;
+    var s = settings();
+
+    state.records  = D.buildRecords(epw, s.isIP);
+    state.filtered = D.dayTypeFilter(state.records, s.dayType);
+    // Day-type filtering is day-granular, so every surviving day still holds
+    // all 24 of its hours -- the per-day series stay complete.
+    state.days     = D.dailySeries(state.filtered);
+
+    document.getElementById('locName').textContent =
+      prettyStation(epw.stationLocation) || '—';
+    document.getElementById('locSub').textContent =
+      [epw.state, epw.country].filter(Boolean).join(', ') +
+      (epw.source ? '  ·  ' + epw.source : '') +
+      (epw.stationID ? '  ·  WMO ' + epw.stationID : '');
+
+    var dow0 = D.startDayOfWeek(epw);
+    var nDays = state.days.length;
+    document.getElementById('dayTypeNote').innerHTML =
+      '<b>Weekdays come from the EPW header, not the calendar.</b> This file’s ' +
+      'DATA PERIODS line starts the year on a <b>' + D.DAY_NAMES[dow0] + '</b>, and ' +
+      'weekdays are counted forward from there — which is exactly what ' +
+      'EnergyPlus does when it simulates the file. The year column cannot be ' +
+      'used instead: a TMYx year splices months from different real years, so no ' +
+      'single calendar applies. Current filter: <b>' +
+      D.DAY_TYPE_LABEL[s.dayType] + '</b> — ' + nDays + ' days, ' +
+      d3.format(',d')(state.filtered.length) + ' of ' +
+      d3.format(',d')(state.records.length) + ' hours.';
+
+    renderProfiles(s);
+    renderRepDays(s);
+
+    status('Loaded: ' + prettyStation(epw.stationLocation), 'ok');
+    window.__monthlyReady = true;
+  }
+
+  /** Selector changes that need only the charts redrawn, not a reparse. */
+  function redrawRepOnly() {
+    if (!epw) return;
+    renderRepDays(settings());
+  }
+
+  // ---- Loading --------------------------------------------------------
+  function loadEPWText(text, label) {
+    try {
+      epw = epw2json(text);
+    } catch (err) {
+      status('Could not parse EPW: ' + err.message, 'error');
+      window.__monthlyError = String(err.message);
+      return;
+    }
+    document.title = 'epwvis — ' +
+      (prettyStation(epw.stationLocation) || label || 'Monthly Profiles');
+    renderAll();
+  }
+
+  /** Accept either a raw .epw or a OneBuilding-style .zip containing one. */
+  function loadArrayBuffer(buf, name) {
+    if (/\.zip$/i.test(name)) {
+      if (typeof JSZip === 'undefined') {
+        status('JSZip not available for .zip input', 'error');
+        return;
+      }
+      JSZip.loadAsync(buf).then(function (zip) {
+        var epwName = null;
+        zip.forEach(function (p) {
+          if (!epwName && /\.epw$/i.test(p)) epwName = p;
+        });
+        if (!epwName) throw new Error('no .epw inside ' + name);
+        return zip.file(epwName).async('string');
+      }).then(function (txt) {
+        loadEPWText(txt, name);
+      }).catch(function (err) {
+        status('Zip read failed: ' + err.message, 'error');
+        window.__monthlyError = String(err.message);
+      });
+    } else {
+      loadEPWText(new TextDecoder('utf-8').decode(buf), name);
+    }
+  }
+
+  function loadFromUrl(url) {
+    status('Loading ' + url + '…');
+    fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      loadArrayBuffer(buf, url);
+    }).catch(function (err) {
+      status('Load failed: ' + err.message, 'error');
+      window.__monthlyError = String(err.message);
+    });
+  }
+
+  // ---- Wiring ---------------------------------------------------------
+  document.getElementById('fileInput').addEventListener('change', function (e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    status('Reading ' + f.name + '…');
+    var fr = new FileReader();
+    fr.onload = function () { loadArrayBuffer(fr.result, f.name); };
+    fr.readAsArrayBuffer(f);
+  });
+
+  // Units and the day-type filter change the underlying records; the
+  // representative-day selectors only re-rank what is already built.
+  ['unitSelect', 'dayTypeSelect'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', renderAll);
+  });
+  ['repVarSelect', 'repBasisSelect', 'repKindSelect'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', redrawRepOnly);
+  });
+
+  // Apply URL parameters: ?epw=<path>&units=IP|SI&days=all|weekday|weekend
+  if (P.units === 'SI' || P.units === 'IP') {
+    document.getElementById('unitSelect').value = P.units;
+  }
+  if (P.days) document.getElementById('dayTypeSelect').value = P.days;
+  if (P.repvar)   document.getElementById('repVarSelect').value = P.repvar;
+  if (P.repbasis) document.getElementById('repBasisSelect').value = P.repbasis;
+  if (P.repkind)  document.getElementById('repKindSelect').value = P.repkind;
+  if (P.export === '1') document.body.classList.add('epw-export');
+
+  if (P.epw) {
+    loadFromUrl(P.epw);
+  } else {
+    status('Choose an EPW or ZIP file to begin');
+  }
+
+  window.__monthlyRenderAll = renderAll;
+})();
+</script>
+</body>
+</html>

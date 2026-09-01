@@ -68,8 +68,11 @@ body.epw-dashboard {
 .dash-status.ok    { color: #4a8b2c; }
 
 /* ---- Page / slide flow --------------------------------------------- */
+/* 1260 = the widest chart (1180) + .dash-block padding (40) + page padding
+   (40), so the twelve-month profile strip lands at native size instead of
+   being scaled down. Narrower windows scale it via the SVG viewBox. */
 .dash-page {
-  max-width: 1040px;
+  max-width: 1260px;
   margin: 0 auto;
   padding: 20px 20px 60px;
 }
@@ -141,6 +144,88 @@ body.epw-dashboard {
   align-items: flex-start;
 }
 
+/* ---- In-block control row (monthly page filters) --------------------- */
+.dash-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -4px 0 14px 0;
+  font-size: 12px;
+  color: var(--dash-ink-soft);
+}
+.dash-controls select {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--dash-border);
+  border-radius: 4px;
+  background: #fff;
+}
+.dash-controls .sep {
+  width: 1px;
+  height: 18px;
+  background: var(--dash-border);
+  margin: 0 4px;
+}
+.dash-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--dash-ink-mute);
+  margin: 12px 0 0 0;
+  border-left: 3px solid var(--dash-border);
+  padding-left: 10px;
+}
+.dash-note b { color: var(--dash-ink-soft); }
+
+/* ---- Representative-day table --------------------------------------- */
+.dash-rep {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin-top: 18px;
+}
+.dash-rep-table { flex: 1 1 520px; min-width: 480px; }
+.dash-rep-detail { flex: 0 0 auto; }
+
+table.dash-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+}
+table.dash-table th {
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dash-ink-mute);
+  text-align: left;
+  padding: 0 8px 5px 0;
+  border-bottom: 1px solid var(--dash-border);
+  white-space: nowrap;
+}
+table.dash-table td {
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid #f1f2ec;
+  white-space: nowrap;
+}
+table.dash-table td.mon { font-weight: bold; }
+table.dash-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+table.dash-table td.pick { cursor: pointer; }
+table.dash-table td.pick:hover { background: #f6f8f5; }
+table.dash-table td.pick .d { color: var(--dash-ink); }
+table.dash-table td.pick .v {
+  color: var(--dash-ink-mute);
+  font-variant-numeric: tabular-nums;
+}
+table.dash-table td.pick.sel {
+  background: #eaf6f8;
+  box-shadow: inset 2px 0 0 var(--dash-accent);
+}
 /* ---- UTCI summary table --------------------------------------------- */
 .epw-otc-summary {
   border-collapse: collapse;

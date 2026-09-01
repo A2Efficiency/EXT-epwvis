@@ -65,6 +65,42 @@ Charts live in `lib/js/epwDashboard.js`. Each is a plain function taking a
 container and prepared data, so they can be resized or restyled without
 touching the page.
 
+### The monthly page
+
+`monthly.html` is a second view onto the same charts, for questions the deck
+does not answer. It is browser-only — nothing in the pipeline renders it.
+
+```bash
+# http://localhost:8000/monthly.html?epw=weather_files/chicago-ohare-intl-ap.epw
+```
+
+It adds two things:
+
+**A weekday/weekend filter.** The *Days* selector restricts every chart to all
+days, weekdays only, or weekends only (excluding weekdays). When a filter is
+on, the profile clouds draw the subset over a grey all-days ghost, so you can
+see whether the subset actually differs from the year or is just a thinner
+sample of it.
+
+Weekdays come from the EPW's `DATA PERIODS` header, which names the day of week
+for 1 January — not from the year column, which in a TMYx file splices months
+from different real years and so has no single calendar. This is the same rule
+EnergyPlus applies when it simulates the file. The page states the start day it
+used.
+
+**A representative day for each month.** Rank every day of a month by one
+statistic of one variable — daily mean / maximum / minimum of dew point or dry
+bulb — then read the low, median and peak off that ranking. Each pick is a real
+date, not an averaged composite, so the plot is that day's actual hour-by-hour
+weather with dry bulb and dew point together and the gap between them (the
+dew-point depression) shaded.
+
+The twelve-panel grid shows the chosen kind across the year; the table lists
+all three picks per month, and clicking any cell — in the table or the grid —
+opens that day full size. Query parameters: `days` (`all|weekday|weekend`),
+`repvar` (`dpt|dbt`), `repbasis` (`mean|max|min`), `repkind`
+(`low|median|peak`), plus `epw`, `units`, `titles` and `export` as above.
+
 ## 3. Render PNGs
 
 ```bash
@@ -84,6 +120,7 @@ Chart names, which become the PNG filenames:
 | `location-map` | US locator map, station's state highlighted |
 | `temperature-annual` | daily min/mean/max band over the year |
 | `temperature-daily-profile` | twelve months in one row, 6a/12p/6p ticks |
+| `dewpoint-daily-profile` | same twelve panels for dew point (not in the deck) |
 | `utci-categories` | UTCI hours per stress category, horizontal bars |
 | `degree-days-monthly` | monthly HDD/CDD, occupied over all-hours |
 | `degree-days-by-temperature` | HDD/CDD by dry-bulb bin, occupied over all-hours |

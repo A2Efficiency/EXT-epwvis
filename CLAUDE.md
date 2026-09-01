@@ -12,10 +12,14 @@ Two halves, kept deliberately separate:
 
 | | Upstream viewer | A2E deck pipeline |
 |---|---|---|
-| Entry point | `index.html` | `dashboard.html` |
+| Entry point | `index.html` | `dashboard.html`, `monthly.html` |
 | Charts | `lib/js/epwCharts.js` | `lib/js/epwDashboard.js` |
 | Purpose | interactive exploration, crossfilter | static slide-shaped figures |
 | Origin | upstream | ours |
+
+`monthly.html` is a browser-only sibling of `dashboard.html`: same chart
+module, but with a weekday/weekend filter and the representative-day picker.
+Nothing in the deck pipeline reads it.
 
 `git remote` has both `origin` (A2Efficiency) and `upstream` (mdahlhausen), and
 upstream changes do get pulled.
@@ -29,7 +33,8 @@ added:
 
 ```
 dashboard.html                 the reporting dashboard page
-lib/js/epwDashboard.js         the five deck charts + aggregations
+monthly.html                   day-type filtering + representative days
+lib/js/epwDashboard.js         the deck charts + aggregations
 lib/js/epwLocatorMap.js        US locator map (d3.geo.albersUsa)
 lib/js/epwOTC.js               UTCI strategy math, shared
 lib/css/epwDashboard.css       dashboard layout
@@ -127,6 +132,14 @@ python -m http.server 8000
 Query params: `epw`, `units` (IP|SI), `hbase`, `cbase`, `occstart`, `occend`,
 `titles` (0 suppresses in-chart titles), `export=1` (strips page chrome).
 
+`monthly.html` takes the same `epw`, `units`, `titles` and `export`, plus
+`days` (`all|weekday|weekend`), `repvar` (`dpt|dbt`), `repbasis`
+(`mean|max|min`) and `repkind` (`low|median|peak`):
+
+```bash
+# http://localhost:8000/monthly.html?epw=weather_files/chicago-ohare-intl-ap.epw&days=weekend
+```
+
 ## Verify visually — the charts are the deliverable
 
 A syntactically valid chart can still be unreadable. Two checks that have each
@@ -189,8 +202,44 @@ midpoint `h-0.5`; an hour is occupied when that midpoint falls in
 Earth 1:10m, public domain). Territories are stripped because
 `d3.geo.albersUsa` cannot project them. Regenerate only to change geometry.
 
+**Weekday/weekend comes from the EPW's `DATA PERIODS` header, not the year
+column.** Field 4 of that line names the day of week for day 1 (`Sunday` in
+every OneBuilding file we handle) and `startDayOfWeek()` counts forward from
+it. The year column cannot be used: a TMYx year splices months from different
+real years — `chicago-ohare-intl-ap.epw` carries 2011 through 2022 — so no
+single calendar applies. EnergyPlus takes the weekday from this same header
+when it simulates the file, so a weekend split built on it matches the
+schedules a model would actually run.
+
+**Dew point is orange, dry bulb is teal, and that pairing was validated not
+guessed.** Dry bulb was already teal in the deck's two temperature charts, so
+dew point had to take the other brand pole. The two-series day charts use
+`PALETTE.dbtPair`/`dewPair` (`#0090a2`/`#e55a00`), which pass all six checks in
+the `dataviz` skill's `scripts/validate_palette.js`. Two things that look
+reasonable and are not: `#007a88` (the existing `tempLine`) misses the chroma
+floor as a categorical slot, and brand green `#4a8b2c` against the teal is
+ΔE 4.3 under tritanopia — indistinguishable. The single-series clouds keep
+`tempLine`, where the categorical checks do not apply.
+
+**A representative day is a real date, never a composite.** Days in a month are
+ranked by one statistic of one variable (`monthlyRepresentativeDays(days, key,
+basis)`), and low/median/peak are read off that ranking, so the plotted profile
+is the actual hour-by-hour weather of a day you can point at. Even-length
+months take the lower of the two middle days, deterministically, rather than
+depending on sort stability.
+
 ## Gotchas
 
+- **Every chart SVG needs a `viewBox`.** Without one, `max-width: 100%` shrinks
+  the SVG *viewport* without scaling its contents, so the chart is silently
+  **cropped** rather than resized — this is what hid December in the 1180px-wide
+  profile strip on a 998px-wide page. `.dash-page` is also sized (1260px) so the
+  widest chart lands at native size. Export mode is unaffected: it sets
+  `max-width: none` in a 1280px viewport, so the PNGs are pixel-identical.
+- **Adding a figure to `dashboard.html` perturbs the PNGs below it** by a
+  handful of sub-pixel antialiasing bytes (~0.002% of the image) — the element
+  screenshots land on different fractional page offsets. Expect a diff in `out/`
+  for charts under the insertion point; it is not a layout change.
 - **Chart sizes are matched to slide slots** in `build_pptx.py`. Changing a
   chart's `width`/`height` in `dashboard.html` changes its aspect ratio and will
   letterbox it on the slide. Change both together.
