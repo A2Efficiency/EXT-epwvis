@@ -320,6 +320,49 @@ def add_degree_day_slide(prs, loc):
     return slide
 
 
+def add_comparison_slide(prs, compare, locs):
+    """Closing slide: every location on one pair of axes.
+
+    Both charts are full width and stacked, sharing a row order, so the reader
+    can track one location down the slide. The takeaway line quotes figures the
+    comparison page computed, never hand-written ones.
+    """
+    charts = compare.get("charts", {})
+    meta = compare.get("meta", {})
+    slide = prs.slides.add_slide(layout(prs, L_TITLE_ONLY))
+
+    set_text(slide, 0, "Locations Compared")
+    textbox(slide, Inches(0.94), Inches(0.88), Inches(9.50), Inches(0.34),
+            [(f"{len(locs)} weather files · "
+              f"base {meta.get('hBase', 65):g}{meta.get('unit', '°F')} · "
+              f"occupied {int(meta.get('occStart', 7))}:00–"
+              f"{int(meta.get('occEnd', 19))}:00", 13, False)],
+            color=BRAND_MUTED)
+
+    if "compare-load-balance" in charts:
+        add_picture_fitted(slide, charts["compare-load-balance"],
+                           Inches(0.60), Inches(1.22), Inches(12.10), Inches(2.98),
+                           align="left")
+    if "compare-design-range" in charts:
+        add_picture_fitted(slide, charts["compare-design-range"],
+                           Inches(0.60), Inches(4.30), Inches(12.10), Inches(2.38),
+                           align="left")
+
+    unit = meta.get("unit", "°F")
+    bits = []
+    if meta.get("ratioMin") and meta.get("ratioMax"):
+        bits.append(f"every location is heating-dominated, but the ratio runs "
+                    f"{meta['ratioMin']:.1f}:1 to {meta['ratioMax']:.1f}:1")
+    if meta.get("heatSpread") and meta.get("coolSpread"):
+        bits.append(f"winter design spans {meta['heatSpread']:.0f}{unit} across the set, "
+                    f"summer design only {meta['coolSpread']:.0f}{unit}")
+    if bits:
+        textbox(slide, Inches(0.60), Inches(6.76), Inches(12.10), Inches(0.42),
+                [("Takeaway: " + "; ".join(bits) + ".", 12, False)],
+                italic=True)
+    return slide
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -331,6 +374,8 @@ def main():
     ap.add_argument("--client", default="", help="subtitle on the title slide")
     ap.add_argument("--eyebrow", default="Weather File Review")
     ap.add_argument("--no-title-slide", action="store_true")
+    ap.add_argument("--no-comparison-slide", action="store_true",
+                    help="omit the closing cross-location summary slide")
     args = ap.parse_args()
 
     man_path = resolve(args.manifest)
@@ -357,6 +402,13 @@ def main():
     for loc in locs:
         add_location_slide(prs, loc)
         add_degree_day_slide(prs, loc)
+
+    # Summary last: the audience has seen each location before being asked to
+    # compare them. Absent from the manifest for a single-location deck, or if
+    # the comparison pass failed -- in which case the deck still builds.
+    compare = manifest.get("compare")
+    if compare and not args.no_comparison_slide:
+        add_comparison_slide(prs, compare, locs)
 
     out = resolve(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

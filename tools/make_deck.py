@@ -68,6 +68,8 @@ def main():
     ap.add_argument("--client", default="", help="subtitle on the title slide")
     ap.add_argument("--out", default="out/climate-deck.pptx")
     ap.add_argument("--no-title-slide", action="store_true")
+    ap.add_argument("--no-comparison-slide", action="store_true",
+                    help="omit the closing cross-location summary slide")
     args = ap.parse_args()
 
     if args.search:
@@ -102,6 +104,8 @@ def main():
         cmd += ["--client", args.client]
     if args.no_title_slide:
         cmd.append("--no-title-slide")
+    if args.no_comparison_slide:
+        cmd.append("--no-comparison-slide")
     run("3/3  Building PowerPoint", cmd)
 
     print(f"\nDone.  {args.out}\n")

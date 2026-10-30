@@ -197,6 +197,30 @@
     }
     var k = text.match(/Climate type\s+"([^"]+)"\s*\(K\S*ppen classification\)/i);
     if (k) { out.koppen = k[1].trim(); }
+
+    // ASHRAE Handbook design conditions, tab-separated rows in the
+    // "Handbook Conditions for Design" block, all in degrees C:
+    //   Heating <coldest month> <99.6% DB> <99% DB> ...
+    //   Cooling <hottest month> <daily range> <0.4% DB> <MCWB> <1% DB> ...
+    // Absent for stations with no published design conditions, so every
+    // consumer must tolerate nulls.
+    function cells(re) {
+      var m = text.match(re);
+      if (!m) return null;
+      return m[1].split('\t').map(function (v) {
+        var n = parseFloat(v.trim());
+        return isFinite(n) ? n : null;
+      });
+    }
+    var hf = cells(/^\s*Heating\t([^\n\r]*)/mi);
+    var cf = cells(/^\s*Cooling\t([^\n\r]*)/mi);
+    if (hf && hf.length > 1) out.designHeating996C = hf[1];
+    if (cf && cf.length > 2) {
+      out.designDailyRangeC = cf[1];
+      out.designCooling04C  = cf[2];
+    }
+    out.hasDesignConditions = out.designHeating996C !== undefined
+                           && out.designCooling04C  !== undefined;
     // Only carry the description over to the Climate type code when the two
     // codes agree. Bend is "BSk" with a probable Cfb "Marine (Cool Summer)" and
     // Great Falls is "BSk" with a probable Dfa "Humid Continental (Warm
@@ -255,6 +279,18 @@
     var isIP = document.getElementById('unitSelect').value === 'IP';
     document.getElementById('hBaseInput').value = isIP ? 65 : 18;
     document.getElementById('cBaseInput').value = isIP ? 65 : 18;
+  }
+
+  /** A .stat temperature (always °C) in the display units; null passes through. */
+  function designTemp(s, c) {
+    if (c === null || c === undefined || !isFinite(c)) return null;
+    return Math.round((s.isIP ? c * 9 / 5 + 32 : c) * 10) / 10;
+  }
+
+  /** Same, for a temperature *difference*: no 32° offset. */
+  function designDelta(s, c) {
+    if (c === null || c === undefined || !isFinite(c)) return null;
+    return Math.round((s.isIP ? c * 9 / 5 : c) * 10) / 10;
   }
 
   // ---- Location block -------------------------------------------------
@@ -350,7 +386,15 @@
       // whether it agreed with the Climate type line.
       koppenProbable:            (statInfo && statInfo.koppenProbable) || '',
       koppenProbableDescription: (statInfo && statInfo.koppenProbableDescription) || '',
-      koppenProbableAgrees:      !!(statInfo && statInfo.koppenAgrees)
+      koppenProbableAgrees:      !!(statInfo && statInfo.koppenAgrees),
+      // Published ASHRAE design conditions, converted to the display units.
+      // null where the .stat carries no design-conditions block.
+      designUnit:        s.unit,
+      designHeating996:  designTemp(s, statInfo && statInfo.designHeating996C),
+      designCooling04:   designTemp(s, statInfo && statInfo.designCooling04C),
+      designDailyRange:  designDelta(s, statInfo && statInfo.designDailyRangeC),
+      designSource:      (statInfo && statInfo.hasDesignConditions)
+                           ? 'ASHRAE Handbook design conditions (.stat)' : ''
     };
     if (statInfo && statInfo.koppen) {
       // The .stat Koppen is derived from ASHRAE design-condition data and is
@@ -539,7 +583,27 @@
     var occMonthly = D.monthlyDegreeDays(occupied, s.hBase, s.cBase);
     var allMonthly = D.monthlyDegreeDays(records,  s.hBase, s.cBase);
     function sum(arr, k) { return arr.reduce(function (a, d) { return a + d[k]; }, 0); }
+
+    // Two comparison metrics, computed here so they use exactly the records and
+    // occupancy filter the rest of this page's numbers do.
+    //   meanDailyRange -- mean daily (max - min), the night-flush / thermal-mass
+    //     signal. A difference, so the same number in the records' own units.
+    //   freeCoolingOccupied -- occupied hours in the mild band where outside air
+    //     alone can carry the load (55-70 degF / 12.8-21.1 degC).
+    var ranges = D.dailyStats(records)
+      .filter(function (d) { return d.min !== null && d.max !== null; })
+      .map(function (d) { return d.max - d.min; });
+    var meanRange = ranges.length
+      ? ranges.reduce(function (a, b) { return a + b; }, 0) / ranges.length : null;
+    var fcLo = s.isIP ? 55 : 12.8, fcHi = s.isIP ? 70 : 21.1;
+    var freeCooling = occupied.filter(function (d) {
+      return d.dbt !== null && d.dbt >= fcLo && d.dbt <= fcHi;
+    }).length;
+
     window.__dashboardTotals = {
+      meanDailyRange:      meanRange === null ? null : Math.round(meanRange * 10) / 10,
+      freeCoolingOccupied: freeCooling,
+      freeCoolingBand:     fcLo + '–' + fcHi + s.unit,
       unit:           unit,
       hBase:          s.hBase,
       cBase:          s.cBase,

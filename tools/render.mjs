@@ -171,8 +171,64 @@ for (const loc of locations) {
   await ctx.close();
 }
 
+// The manifest has to land before the comparison pass: compare.html reads it
+// rather than re-parsing the EPW files, so the summary slide can never disagree
+// with the per-location slides it summarises.
+fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
+// ---- comparison pass ----------------------------------------------------
+// One extra page, once, over every location already rendered. Needs at least
+// two locations to be worth a slide.
+if (manifest.locations.length > 1) {
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    deviceScaleFactor: SCALE
+  });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => console.error(`  [page error] ${e.message}`));
+
+  process.stdout.write('comparison … ');
+  await page.goto(`${base}/compare.html?export=1&titles=${TITLES}`,
+                  { waitUntil: 'networkidle' });
+  try {
+    await page.waitForFunction('window.__compareReady === true', { timeout: 60000 });
+    await page.evaluate(() => document.fonts.ready);
+
+    const dir = path.join(OUT, 'compare');
+    fs.mkdirSync(dir, { recursive: true });
+
+    const names = await page.$$eval('[data-chart]', (els) =>
+      els.map((e) => e.getAttribute('data-chart')));
+
+    const charts = {};
+    for (const name of names) {
+      const el = await page.$(`[data-chart="${name}"]`);
+      const target = (await el.$('svg')) || (await el.$('table')) || el;
+      const box = await target.boundingBox();
+      if (!box || box.width < 2 || box.height < 2) {
+        console.error(`\n  WARN ${name}: empty element, skipped`);
+        continue;
+      }
+      const file = path.join(dir, `${name}.png`);
+      await target.screenshot({ path: file });
+      charts[name] = path.relative(ROOT, file).replace(/\\/g, '/');
+    }
+
+    manifest.compare = {
+      meta: await page.evaluate(() => window.__compareMeta || {}),
+      charts
+    };
+    fs.writeFileSync(path.join(OUT, 'manifest.json'),
+                     JSON.stringify(manifest, null, 2));
+    console.log(`${Object.keys(charts).length} charts -> out/compare/`);
+  } catch {
+    const err = await page.evaluate('window.__compareError || "timed out"');
+    console.error(`FAILED (${err}) -- deck will build without the summary slide`);
+  }
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 
-fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
 console.log(`\nmanifest: out/manifest.json  (${manifest.locations.length} location(s))`);

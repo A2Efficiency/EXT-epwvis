@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>epwvis — Location Comparison</title>
+
+<link rel="stylesheet" href="./lib/css/epwDashboard.css?v=0.1.0" type="text/css"/>
+
+<script type="text/javascript" src="./lib/js/d3/d3.min.js"></script>
+<script type="text/javascript" src="./lib/js/epwDashboard.js"></script>
+<script type="text/javascript" src="./lib/js/epwCompare.js"></script>
+</head>
+
+<body class="epw-dashboard">
+
+<div class="dash-toolbar" id="dashToolbar">
+  <h1>Location Comparison</h1>
+  <span class="dash-status" id="dashStatus">Loading manifest…</span>
+</div>
+
+<div class="dash-page" id="dashPage">
+  <section class="dash-block">
+    <h2>Load Balance</h2>
+    <figure class="dash-figure" id="chartLoadBalance" data-chart="compare-load-balance"></figure>
+  </section>
+
+  <section class="dash-block">
+    <h2>Design Conditions</h2>
+    <figure class="dash-figure" id="chartDesignRange" data-chart="compare-design-range"></figure>
+  </section>
+</div>
+
+<script type="text/javascript">
+(function () {
+  'use strict';
+
+  // This page is a second pass over what render.mjs already produced: it reads
+  // out/manifest.json rather than re-parsing six EPW files, so every number on
+  // the summary slide is byte-for-byte the number on the per-location slides.
+  function params() {
+    var out = {};
+    location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
+      if (!kv) return;
+      var i = kv.indexOf('=');
+      out[decodeURIComponent(i < 0 ? kv : kv.slice(0, i))] =
+        i < 0 ? '' : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
+    });
+    return out;
+  }
+  var P = params();
+
+  function status(msg, cls) {
+    var el = document.getElementById('dashStatus');
+    el.textContent = msg;
+    el.className = 'dash-status' + (cls ? ' ' + cls : '');
+  }
+
+  /** Short label: the station name without the trailing "(CO, USA)". */
+  function shortName(loc) {
+    var n = (loc.meta && loc.meta.station) || loc.name || loc.slug;
+    return String(n).replace(/\s*\(.*\)\s*$/, '').trim();
+  }
+
+  function build(manifest) {
+    var locs = (manifest.locations || []).filter(function (l) {
+      return l.totals && l.totals.hddOccupied !== undefined;
+    });
+    if (!locs.length) throw new Error('manifest has no usable locations');
+
+    var isIP = (manifest.units || 'IP') === 'IP';
+    var unit = isIP ? '°F' : '°C';
+    var t0 = locs[0].totals;
+
+    var rows = locs.map(function (l) {
+      var m = l.meta || {}, t = l.totals || {};
+      return {
+        name:      shortName(l),
+        hdd:       t.hddOccupied,
+        cdd:       t.cddOccupied,
+        heat:      m.designHeating996 === undefined ? null : m.designHeating996,
+        cool:      m.designCooling04 === undefined ? null : m.designCooling04,
+        swing:     t.meanDailyRange === undefined ? null : t.meanDailyRange,
+        freeHours: t.freeCoolingOccupied === undefined ? null : t.freeCoolingOccupied
+      };
+    });
+
+    var occLabel = 'occupied ' + t0.occStart + ':00–' + t0.occEnd + ':00';
+
+    EpwCompare.drawLoadBalance('#chartLoadBalance', rows, {
+      width: 1220, height: 300,
+      unit: t0.unit || (unit + '·day'),
+      title: P.titles === '0' ? null : 'Heating and Cooling Load Balance',
+      subtitle: 'Degree days (' + (t0.unit || unit + '·day') + '), base '
+              + t0.hBase + unit + ', ' + occLabel
+              + ' · one shared scale · sorted by heating-to-cooling ratio'
+    });
+
+    EpwCompare.drawDesignRange('#chartDesignRange', rows, {
+      width: 1220, height: 240,
+      unit: unit, isIP: isIP,
+      band: t0.freeCoolingBand || (isIP ? '55–70°F' : '12.8–21.1°C'),
+      title: P.titles === '0' ? null : 'Design Temperature Span',
+      subtitle: 'ASHRAE 99.6% heating to 0.4% cooling dry bulb · same row order as above'
+    });
+
+    window.__compareMeta = {
+      units: manifest.units,
+      count: rows.length,
+      occStart: t0.occStart,
+      occEnd: t0.occEnd,
+      hBase: t0.hBase,
+      band: t0.freeCoolingBand || '',
+      // The two facts the slide's takeaway line quotes, computed rather than
+      // written by hand so they cannot drift from the charts.
+      ratioMin: d3.min(rows, function (r) { return r.hdd / Math.max(r.cdd, 1); }),
+      ratioMax: d3.max(rows, function (r) { return r.hdd / Math.max(r.cdd, 1); }),
+      heatSpread: d3.max(rows, function (r) { return r.heat; })
+                - d3.min(rows, function (r) { return r.heat; }),
+      coolSpread: d3.max(rows, function (r) { return r.cool; })
+                - d3.min(rows, function (r) { return r.cool; }),
+      unit: unit
+    };
+  }
+
+  // Same export contract as dashboard.html: the class strips page chrome and
+  // the .dash-page max-width, which would otherwise clip a chart this wide.
+  if (P.export === '1') document.body.classList.add('epw-export');
+
+  fetch(P.manifest || 'out/manifest.json')
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function (man) {
+      build(man);
+      status('Compared ' + (window.__compareMeta.count) + ' locations', 'ok');
+      window.__compareReady = true;
+    })
+    .catch(function (err) {
+      status('Comparison failed: ' + err.message, 'error');
+      window.__compareError = String(err.message);
+    });
+})();
+</script>
+
+</body>
+</html>

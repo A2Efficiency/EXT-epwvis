@@ -33,8 +33,10 @@ added:
 
 ```
 dashboard.html                 the reporting dashboard page
+compare.html                   the cross-location comparison page
 monthly.html                   day-type filtering + representative days
 lib/js/epwDashboard.js         the deck charts + aggregations
+lib/js/epwCompare.js           the two comparison charts
 lib/js/epwLocatorMap.js        US locator map (d3.geo.albersUsa)
 lib/js/epwOTC.js               UTCI strategy math, shared
 lib/css/epwDashboard.css       dashboard layout
@@ -322,13 +324,25 @@ depending on sort stability.
 
 ## Deck structure
 
-Title slide, then two slides per location:
+Title slide, two slides per location, then one comparison slide:
 
 1. **Location** — station facts, ASHRAE zone + Köppen, locator map, UTCI hours
    breakdown, annual temperature, daily profile strip.
 2. **Degree days** — degree days by temperature bin and by month (occupied hours
    solid over pale all-hours), headline occupied HDD/CDD with the unfiltered site
    totals in bold, assumptions, occupancy note at the foot.
+3. **Locations Compared** (once, at the end) - back-to-back occupied HDD/CDD on
+   one shared scale sorted by heating-to-cooling ratio, over the ASHRAE 99.6%
+   to 0.4% design span with mean daily swing and mild-band hours. Suppress with
+   `--no-comparison-slide`; skipped automatically for a single location.
+
+`compare.html` reads `out/manifest.json` rather than re-parsing the EPW files, so
+the summary can never disagree with the per-location slides. `render.mjs`
+therefore writes the manifest *before* its comparison pass and rewrites it after,
+adding a `compare` key. A failed comparison pass is not fatal - the deck builds
+without the slide. The 99.6%/0.4% design temperatures come from the `.stat`
+design-conditions block, which some stations do not carry; every consumer must
+tolerate nulls there.
 
 Layout names are constants at the top of `build_pptx.py` (`L_TITLE`, `L_BLANK`,
 `L_TITLE_ONLY`) and must match the template exactly. The template also ships six
