@@ -351,8 +351,18 @@ def add_comparison_slide(prs, compare, locs):
     unit = meta.get("unit", "°F")
     bits = []
     if meta.get("ratioMin") and meta.get("ratioMax"):
-        bits.append(f"every location is heating-dominated, but the ratio runs "
-                    f"{meta['ratioMin']:.1f}:1 to {meta['ratioMax']:.1f}:1")
+        span = (f"heating-to-cooling ratio runs "
+                f"{meta['ratioMin']:.1f}:1 to {meta['ratioMax']:.1f}:1")
+        n, total = meta.get("heatingDominated"), meta.get("count")
+        if n is None or total is None:
+            bits.append(span)                    # older manifest: no count
+        elif n == total:
+            bits.append(f"every location is heating-dominated, but the {span}")
+        elif n == 0:
+            bits.append(f"every location is cooling-dominated; the {span}")
+        else:
+            bits.append(f"{n} of {total} locations heating-dominated "
+                        f"(ratio {meta['ratioMin']:.1f}:1 to {meta['ratioMax']:.1f}:1)")
     if meta.get("heatSpread") and meta.get("coolSpread"):
         bits.append(f"winter design spans {meta['heatSpread']:.0f}{unit} across the set, "
                     f"summer design only {meta['coolSpread']:.0f}{unit}")

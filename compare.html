@@ -115,6 +115,7 @@
       // written by hand so they cannot drift from the charts.
       ratioMin: d3.min(rows, function (r) { return r.hdd / Math.max(r.cdd, 1); }),
       ratioMax: d3.max(rows, function (r) { return r.hdd / Math.max(r.cdd, 1); }),
+      heatingDominated: rows.filter(function (r) { return r.hdd >= r.cdd; }).length,
       heatSpread: d3.max(rows, function (r) { return r.heat; })
                 - d3.min(rows, function (r) { return r.heat; }),
       coolSpread: d3.max(rows, function (r) { return r.cool; })
