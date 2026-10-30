@@ -77,8 +77,11 @@
 
   <!-- ---------- Humidity ---------- -->
   <section class="dash-block" id="blockHumidity">
-    <h2>Humidity</h2>
+    <h2>Humidity &amp; Mold Risk</h2>
     <figure class="dash-figure" id="chartDewProfiles" data-chart="dewpoint-daily-profile"></figure>
+    <figure class="dash-figure" id="chartRHComfort" data-chart="rh-bands-comfort"></figure>
+    <figure class="dash-figure" id="chartRHIaq" data-chart="rh-bands-iaq"></figure>
+    <div class="dash-note" id="rhBandNote"></div>
   </section>
 
   <!-- ---------- Outdoor thermal comfort ---------- -->
@@ -380,9 +383,18 @@
     });
 
     // Page 1 characterises the whole year, so no occupancy ghost here.
-    D.drawDailyProfiles('#chartProfiles', { all: D.hourlyProfileByMonth(records) }, {
+    // Dew point rides on the same axis: the gap between the two clouds IS the
+    // dew-point depression, which is the thing a reader is really after and
+    // cannot be measured across two separate strips.
+    D.drawDailyProfiles('#chartProfiles', {
+      all:     D.hourlyProfileByMonth(records),
+      overlay: D.hourlyProfileByMonth(records, 'dpt')
+    }, {
+      // Height stays 300: build_pptx.py sizes the slide slot to this aspect,
+      // and changing it letterboxes the picture. The legend costs ~16px of
+      // plot area instead.
       width: 1180, height: 300, unit: s.unit,
-      yLabel: 'Dry Bulb Temperature (' + s.unit + ')',
+      yLabel: 'Temperature (' + s.unit + ')',
       title: s.chartTitle('Average Daily Profile by Month'),
       footer: { selected: records.length, total: records.length }
     });
@@ -404,6 +416,95 @@
       title: s.chartTitle('Average Daily Dew Point Profile by Month'),
       footer: { selected: records.length, total: records.length }
     });
+  }
+
+
+  /**
+   * Hours by dew-point band, under two rubrics transposed from indoor RH.
+   *
+   * WHY THIS IS NOT A CHART OF THE FILE'S RH COLUMN. The published rubrics are
+   * written for ZONE relative humidity. An EPW only has OUTDOOR RH, and outdoor
+   * RH is close to meaningless indoors -- 60% at 40 degF is bone dry once the
+   * air is heated to 70. Dew point is the property that survives: sensible
+   * heating and cooling leave it unchanged, so the outdoor dew point IS the
+   * zone dew point of a space running on outdoor air with no dehumidification.
+   * Each RH threshold is converted to the dew point that produces it at a
+   * stated indoor dry bulb -- the dry side at 70 degF, the humid side at 75 degF
+   * -- and the hours are counted on the EPW's dew-point column.
+   *
+   * Both charts count ALL 8,760 hours, occupied and unoccupied, weekday and
+   * weekend. The mold rubric is written that way on purpose (biological growth
+   * does not observe an occupancy schedule) and the comfort rubric is kept on
+   * the same basis so the two share a denominator.
+   */
+  function renderHumidityBands(s, records) {
+    var comfortBands = D.resolveDewPointBands(D.DP_BANDS_COMFORT, s.isIP);
+    var iaqBands     = D.resolveDewPointBands(D.DP_BANDS_IAQ,     s.isIP);
+    var comfort = D.dewPointBandCounts(records, comfortBands);
+    var iaq     = D.dewPointBandCounts(records, iaqBands);
+
+    var sp = D.DP_SETPOINT;
+    var spCool = D.setpointLabel(sp.cool, s.isIP);
+    var spWarm = D.setpointLabel(sp.warm, s.isIP);
+    var spNote = 'RH thresholds transposed to dew point at ' +
+                 spCool + ' indoors (dry side) and ' +
+                 spWarm + ' (humid side)';
+
+    D.drawDewPointBandBars('#chartRHComfort', comfortBands, comfort, {
+      width: 640, height: 264, colors: D.DP_COMFORT_RAMP,
+      title: s.chartTitle('Outdoor Dew Point \u2014 Indoor Comfort Bands'),
+      subtitle: spNote
+    });
+
+    D.drawDewPointBandBars('#chartRHIaq', iaqBands, iaq, {
+      width: 640, height: 324, colors: D.DP_IAQ_RAMP,
+      title: s.chartTitle('Outdoor Dew Point \u2014 IAQ and Mold Risk'),
+      subtitle: spNote
+    });
+
+    var note = document.getElementById('rhBandNote');
+    if (!note) return;
+
+    var f = d3.format(',d');
+    var pct = function (n) {
+      return iaq.total ? (n / iaq.total * 100).toFixed(1) : '0.0';
+    };
+    var crit = iaq.counts[6], high = iaq.counts[5];
+
+    // The mapping is the whole argument of these two charts, so show it rather
+    // than asking the reader to trust the axis.
+    var mapRows = iaqBands.map(function (b, i) {
+      return '<tr><td>' + b.label + '</td><td>' + b.source + '</td>' +
+             '<td class="num">' + b.range + '</td>' +
+             '<td class="num">' + f(iaq.counts[i]) + '</td>' +
+             '<td class="num">' + pct(iaq.counts[i]) + '%</td></tr>';
+    }).join('');
+
+    note.innerHTML =
+      '<b>Why dew point and not the RH in the file.</b> These rubrics are ' +
+      'written for <b>zone</b> relative humidity. The weather file only carries ' +
+      '<b>outdoor</b> RH, which says almost nothing about the space \u2014 60% at ' +
+      '40\u00b0F is bone dry once that air is heated to 70\u00b0F. Dew point is what ' +
+      'survives the trip: sensible heating and cooling do not change it, so the ' +
+      'outdoor dew point <i>is</i> the zone dew point of a space on outdoor air ' +
+      'with no dehumidification. Each RH threshold is therefore converted to the ' +
+      'dew point that produces it at a stated indoor dry bulb \u2014 the dry bands ' +
+      'at the cooler heating setpoint (' + spCool + '), the humid bands at ' +
+      'the warmer cooling setpoint (' + spWarm + '), which is where each ' +
+      'band\u2019s risk actually lives \u2014 and the hours are counted on the file\u2019s ' +
+      'dew-point column. Bands are half-open (lower bound included, upper ' +
+      'excluded), so every readable hour lands in exactly one and the counts sum ' +
+      'to ' + f(iaq.total) + '. ' +
+      'Hours at or above the 70%-at-' + spWarm + ' threshold (<b>' + f(crit) +
+      '</b>, ' + pct(crit) + '%) meet the ASHRAE 160 sustained mold-growth ' +
+      'condition; the band below it (<b>' + f(high) + '</b>, ' + pct(high) +
+      '%) is where growth becomes possible on susceptible materials. ' +
+      'A space that is actually dehumidified sits below these lines \u2014 the ' +
+      'charts measure the latent load a system has to remove, not a foregone ' +
+      'conclusion about the zone.' +
+      '<table class="dash-table dash-dp-map"><tr>' +
+      '<th>Band</th><th>Indoor RH threshold</th><th>Dew point</th>' +
+      '<th>Hours</th><th>Share</th></tr>' + mapRows + '</table>';
   }
 
   function renderDegreeDays(s, records) {
@@ -483,6 +584,7 @@
     renderLocation(s);
     var records = renderTemperature(s);
     renderHumidity(s, records);
+    renderHumidityBands(s, records);
     renderDegreeDays(s, records);
 
     // UTCI runs the full polynomial ~5x8760 times, so let the page paint the

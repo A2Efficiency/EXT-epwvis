@@ -226,6 +226,17 @@ table.dash-table td.pick.sel {
   background: #eaf6f8;
   box-shadow: inset 2px 0 0 var(--dash-accent);
 }
+/* ---- Dew-point band mapping table ----------------------------------- */
+/* Sits inside a .dash-note paragraph, so it needs its own top gap and a
+   narrower measure than the full-width representative-day table. */
+table.dash-table.dash-dp-map {
+  margin-top: 10px;
+  width: auto;
+  min-width: 520px;
+  font-size: 11px;
+}
+table.dash-table.dash-dp-map td:first-child { font-weight: bold; }
+
 /* ---- UTCI summary table --------------------------------------------- */
 .epw-otc-summary {
   border-collapse: collapse;

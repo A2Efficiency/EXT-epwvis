@@ -1,0 +1,44 @@
+[
+  {
+    "slug": "denver-intl-ap-co",
+    "name": "Denver Intl AP (CO, USA)",
+    "epw": "weather_data/USA_CO_Denver.Intl.AP.725650_TMYx.2011-2025.epw",
+    "stat": "weather_data/USA_CO_Denver.Intl.AP.725650_TMYx.2011-2025.stat"
+  },
+  {
+    "slug": "atlanta-hartsfield-jackson-intl-ap-ga",
+    "name": "Atlanta Hartsfield Jackson Intl AP (GA, USA)",
+    "epw": "weather_data/USA_GA_Atlanta-Hartsfield-Jackson.Intl.AP.722190_TMYx.2011-2025.epw",
+    "stat": "weather_data/USA_GA_Atlanta-Hartsfield-Jackson.Intl.AP.722190_TMYx.2011-2025.stat"
+  },
+  {
+    "slug": "chicago-ohare-intl-ap-il",
+    "name": "Chicago OHare Intl AP (IL, USA)",
+    "epw": "weather_data/USA_IL_Chicago.OHare.Intl.AP.725300_TMYx.2011-2025.epw",
+    "stat": "weather_data/USA_IL_Chicago.OHare.Intl.AP.725300_TMYx.2011-2025.stat"
+  },
+  {
+    "slug": "new-york-central-park-obs-belvedere-castle-ny",
+    "name": "New York Central Park Obs Belvedere Castle (NY, USA)",
+    "epw": "weather_data/USA_NY_New.York-Central.Park.Obs-Belvedere.Castle.725053_TMYx.2011-2025.epw",
+    "stat": "weather_data/USA_NY_New.York-Central.Park.Obs-Belvedere.Castle.725053_TMYx.2011-2025.stat"
+  },
+  {
+    "slug": "rochester-greater-rochester-intl-ap-ny",
+    "name": "Rochester Greater Rochester Intl AP (NY, USA)",
+    "epw": "weather_data/USA_NY_Rochester-Greater.Rochester.Intl.AP.725290_TMYx.2011-2025.epw",
+    "stat": "weather_data/USA_NY_Rochester-Greater.Rochester.Intl.AP.725290_TMYx.2011-2025.stat"
+  },
+  {
+    "slug": "houston-bush-intercontinental-ap-tx",
+    "name": "Houston Bush Intercontinental AP (TX, USA)",
+    "epw": "weather_data/USA_TX_Houston-Bush.Intercontinental.AP.722430_TMYx.2011-2025.epw",
+    "stat": "weather_data/USA_TX_Houston-Bush.Intercontinental.AP.722430_TMYx.2011-2025.stat"
+  },
+  {
+    "slug": "seattle-tacoma-intl-ap-wa",
+    "name": "Seattle Tacoma Intl AP (WA, USA)",
+    "epw": "weather_data/USA_WA_Seattle-Tacoma.Intl.AP.727930_TMYx.2011-2025.epw",
+    "stat": "weather_data/USA_WA_Seattle-Tacoma.Intl.AP.727930_TMYx.2011-2025.stat"
+  }
+]

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>epwvis &mdash; Climate Zone Grid</title>
+
+<link rel="stylesheet" href="./lib/css/epwDashboard.css?v=0.1.0" type="text/css"/>
+
+<!-- data layer: shared with the interactive viewer -->
+<script type="text/javascript" src="./lib/js/d3/d3.min.js"></script>
+<script type="text/javascript" src="./lib/js/psychrolib.js"></script>
+<script type="text/javascript" src="./lib/js/epw2json.js"></script>
+<script type="text/javascript" src="./lib/js/solarPV.js"></script>
+
+<!-- dashboard chart module (shared with dashboard.html and monthly.html) -->
+<script type="text/javascript" src="./lib/js/epwDashboard.js"></script>
+<script type="text/javascript" src="./data/usGeo.js"></script>
+<script type="text/javascript" src="./lib/js/epwLocatorMap.js"></script>
+
+<style>
+  /* This page exists to be screenshotted, so it carries almost no chrome. */
+  body.epw-dashboard .zg-page {
+    max-width: none;
+    padding: 12px;
+  }
+  body.zg-export .dash-toolbar,
+  body.zg-export .zg-note { display: none; }
+  body.zg-export .zg-page { padding: 0; }
+  body.zg-export { background: #fff; }
+  .zg-page figure { margin: 0; }
+  .zg-page .epw-chart { max-width: none; }
+</style>
+</head>
+
+<body class="epw-dashboard">
+
+<div class="dash-toolbar" id="dashToolbar">
+  <h1>Climate Zone Grid</h1>
+  <span class="dash-status" id="dashStatus">Loading&hellip;</span>
+</div>
+
+<div class="zg-page" id="zgPage">
+  <figure class="dash-figure" id="chartZoneGrid" data-chart="zone-month-grid"></figure>
+  <div class="dash-note zg-note" id="zgNote"></div>
+
+  <!-- Every station in the study on one US map, for the first slide. -->
+  <figure class="dash-figure" id="chartSites" data-chart="site-map"></figure>
+
+  <!-- One comfort-band chart per location, screenshotted individually and
+       placed on the second slide. -->
+  <div id="zgBands"></div>
+</div>
+
+<script type="text/javascript">
+(function () {
+  'use strict';
+
+  var D = window.EpwDashboard;
+
+  /**
+   * Draws one drawZoneMonthGrid() figure from a manifest of EPW files.
+   *
+   * Query params:
+   *   manifest  JSON file listing the columns (required). Shape:
+   *             { columns: [{ epw, zone, city }], ... }
+   *   months    comma-separated 1-based months for the rows (default 1,7)
+   *   units     IP | SI                            (default IP)
+   *   width     SVG width in px                    (default 1600)
+   *   height    SVG height in px                   (default 860)
+   *   titles    0 suppresses the in-chart title    (default 0 -- the slide
+   *             carries the title, so the PNG should not repeat it)
+   *   export    1 strips page chrome
+   *
+   * The manifest is built by tools/render_zone_grid.mjs, which reads the ASHRAE
+   * zone out of each file's sibling .stat. Zones are NEVER computed here; see
+   * CLAUDE.md on why the .stat is the only defensible source.
+   */
+  function params() {
+    var out = {};
+    location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
+      if (!kv) return;
+      var i = kv.indexOf('=');
+      var k = i < 0 ? kv : kv.slice(0, i);
+      out[decodeURIComponent(k)] = i < 0 ? '' : decodeURIComponent(kv.slice(i + 1));
+    });
+    return out;
+  }
+
+  /** Every station in the study, marked on one albersUsa map. */
+  function drawSiteMap(columns) {
+    if (!window.EpwLocatorMap) return;
+    window.EpwLocatorMap.render('#chartSites', {
+      width:  parseInt(P.mapwidth, 10)  || 620,
+      height: parseInt(P.mapheight, 10) || 380,
+      labelSize: 13,
+      sites: columns.map(function (c) {
+        return { lat: c.lat, lon: c.lon, label: c.zone + ' ' + c.city };
+      })
+    });
+  }
+
+  /**
+   * One Outdoor Dew Point / Indoor Comfort Bands chart per location.
+   *
+   * Every chart is given the SAME x domain -- the largest band count across all
+   * of them -- so a bar of a given length means the same number of hours in
+   * every panel. Without that each chart would fill its own box and Houston's
+   * "Humid" bar would look the same size as Denver's.
+   */
+  function drawBandCharts(columns) {
+    var host = document.getElementById('zgBands');
+    if (!host) return [];
+    host.innerHTML = '';
+
+    var bands = D.resolveDewPointBands(D.DP_BANDS_COMFORT, isIP);
+    var results = columns.map(function (c) {
+      return D.dewPointBandCounts(c.records, bands);
+    });
+    var xMax = 0;
+    results.forEach(function (r) {
+      r.counts.forEach(function (n) { if (n > xMax) xMax = n; });
+    });
+
+    // No per-chart subtitle: the transposition note is identical in all seven,
+    // and repeating it costs the space the band labels need to stay legible on
+    // a slide. build_zone_slide.py carries it once, under the slide title.
+
+    return columns.map(function (c, i) {
+      var fig = document.createElement('figure');
+      fig.className = 'dash-figure zg-band';
+      fig.id = 'chartBand' + i;
+      fig.setAttribute('data-band', String(i));
+      host.appendChild(fig);
+
+      D.drawDewPointBandBars('#chartBand' + i, bands, results[i], {
+        // Deliberately small in px. These are placed about 5in wide, so a
+        // narrower canvas scales the 9px labels UP on the slide -- at 640px
+        // they came out around 5pt and could not be read.
+        width:  parseInt(P.bandwidth, 10)  || 340,
+        height: parseInt(P.bandheight, 10) || 290,
+        compact: true,
+        colors: D.DP_COMFORT_RAMP,
+        xMax:   xMax,
+        title:  c.zone + '  ' + c.city
+      });
+      return fig.id;
+    });
+  }
+
+  function status(msg, cls) {
+    var el = document.getElementById('dashStatus');
+    el.textContent = msg;
+    el.className = 'dash-status' + (cls ? ' ' + cls : '');
+  }
+
+  function fetchText(url) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error(r.status + ' ' + r.statusText + ' -- ' + url);
+      return r.text();
+    });
+  }
+
+  var P = params();
+  var isIP = (P.units || 'IP').toUpperCase() !== 'SI';
+  var unit = isIP ? '°F' : '°C';
+  var months = (P.months || '1,7').split(',')
+      .map(function (t) { return parseInt(t, 10); })
+      .filter(function (n) { return n >= 1 && n <= 12; });
+
+  if (P['export'] === '1') document.body.classList.add('zg-export');
+
+  window.__zoneGridReady = false;
+
+  if (!P.manifest) {
+    status('No ?manifest= given', 'error');
+    return;
+  }
+
+  fetchText(P.manifest).then(function (txt) {
+    var man = JSON.parse(txt);
+    var cols = man.columns || [];
+    if (!cols.length) throw new Error('manifest lists no columns');
+
+    // Sequential rather than parallel: eight 1.6 MB files through one Chromium
+    // tab is not worth the concurrency, and failures report in column order.
+    var columns = [];
+    return cols.reduce(function (chain, c, i) {
+      return chain.then(function () {
+        status('Reading ' + (i + 1) + ' of ' + cols.length + ': ' + c.city);
+        return fetchText(c.epw).then(function (raw) {
+          var epw = epw2json(raw);
+          var records = D.buildRecords(epw, isIP);
+          columns.push({
+            zone:    c.zone,
+            city:    c.city,
+            records: records,
+            lat:     parseFloat(epw.latitude),
+            lon:     parseFloat(epw.longitude),
+            profile:    D.hourlyProfileByMonth(records),
+            profileDew: D.hourlyProfileByMonth(records, 'dpt'),
+            hours:   records.length
+          });
+        });
+      });
+    }, Promise.resolve()).then(function () { return { man: man, columns: columns }; });
+  }).then(function (res) {
+    var columns = res.columns;
+
+    D.drawZoneMonthGrid('#chartZoneGrid', columns, {
+      width:  parseInt(P.width, 10)  || 1600,
+      height: parseInt(P.height, 10) || 860,
+      months: months,
+      shareY: P.sharey || 'all',
+      unit:   unit,
+      yLabel: 'Temperature (' + unit + ')',   // one axis, both series
+      title:  P.titles === '0' ? null
+                : 'Typical Daily Temperature by ASHRAE Climate Zone'
+    });
+
+    document.getElementById('zgNote').innerHTML =
+      '<b>What each panel shows.</b> The band is the min-max envelope of every ' +
+      'hour of that month across the weather file; the line is the hourly mean. ' +
+      'One y scale spans all ' + columns.length + ' locations and both months — ' +
+      'per-panel scales would make every climate look alike. Hours are plotted ' +
+      'at clock time (EPW hour <i>h</i> spans <i>h</i>‑1 to <i>h</i>, midpoint ' +
+      '<i>h</i>−0.5). ASHRAE zones are read from each file’s sibling ' +
+      '<code>.stat</code>, never computed.';
+
+    drawSiteMap(columns);
+    drawBandCharts(columns);
+
+    status('Drew ' + columns.length + ' locations', 'ok');
+    window.__zoneGridReady = true;
+  }).catch(function (err) {
+    status(String(err && err.message || err), 'error');
+    window.__zoneGridError = String(err && err.message || err);
+  });
+})();
+</script>
+
+</body>
+</html>

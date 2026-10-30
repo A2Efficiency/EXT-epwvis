@@ -1,0 +1,89 @@
+{
+  "generated": "2026-09-04T21:29:28.134Z",
+  "source": "weather_data",
+  "units": "IP",
+  "months": [
+    1,
+    7
+  ],
+  "width": 1600,
+  "height": 760,
+  "scale": 3,
+  "shareY": "row",
+  "columns": [
+    {
+      "epw": "weather_data/USA_TX_Houston-Bush.Intercontinental.AP.722430_TMYx.2011-2025.epw",
+      "stem": "USA_TX_Houston-Bush.Intercontinental.AP.722430_TMYx.2011-2025",
+      "city": "Houston, TX",
+      "zone": "2A",
+      "zoneName": "Hot - Humid",
+      "koppen": "Cfa",
+      "zonePublished": true,
+      "bandPng": "out/zonegrid/bands/2a-houston-tx.png"
+    },
+    {
+      "epw": "weather_data/USA_GA_Atlanta-Hartsfield-Jackson.Intl.AP.722190_TMYx.2011-2025.epw",
+      "stem": "USA_GA_Atlanta-Hartsfield-Jackson.Intl.AP.722190_TMYx.2011-2025",
+      "city": "Atlanta, GA",
+      "zone": "3A",
+      "zoneName": "Warm - Humid",
+      "koppen": "Cfa",
+      "zonePublished": true,
+      "bandPng": "out/zonegrid/bands/3a-atlanta-ga.png"
+    },
+    {
+      "epw": "weather_data/USA_NY_New.York-Central.Park.Obs-Belvedere.Castle.725053_TMYx.2011-2025.epw",
+      "stem": "USA_NY_New.York-Central.Park.Obs-Belvedere.Castle.725053_TMYx.2011-2025",
+      "city": "New York, NY",
+      "zone": "4A",
+      "zoneName": "Mixed - Humid",
+      "koppen": "Cfa/Dfa",
+      "zonePublished": true,
+      "bandPng": "out/zonegrid/bands/4a-new-york-ny.png"
+    },
+    {
+      "epw": "weather_data/USA_WA_Seattle-Tacoma.Intl.AP.727930_TMYx.2011-2025.epw",
+      "stem": "USA_WA_Seattle-Tacoma.Intl.AP.727930_TMYx.2011-2025",
+      "city": "Seattle, WA",
+      "zone": "4C",
+      "zoneName": "Mixed - Marine",
+      "koppen": "Cb",
+      "zonePublished": true,
+      "bandPng": "out/zonegrid/bands/4c-seattle-wa.png"
+    },
+    {
+      "epw": "weather_data/USA_IL_Chicago.OHare.Intl.AP.725300_TMYx.2011-2025.epw",
+      "stem": "USA_IL_Chicago.OHare.Intl.AP.725300_TMYx.2011-2025",
+      "city": "Chicago, IL",
+      "zone": "5A",
+      "zoneName": "Cool - Humid",
+      "koppen": "Dfa",
+      "zonePublished": true,
+      "bandPng": "out/zonegrid/bands/5a-chicago-il.png"
+    },
+    {
+      "epw": "weather_data/USA_NY_Rochester-Greater.Rochester.Intl.AP.725290_TMYx.2011-2025.epw",
+      "stem": "USA_NY_Rochester-Greater.Rochester.Intl.AP.725290_TMYx.2011-2025",
+      "city": "Rochester, NY",
+      "zone": "5A",
+      "zoneName": "Cool - Humid",
+      "koppen": "Dfa",
+      "zonePublished": true,
+      "bandPng": "out/zonegrid/bands/5a-rochester-ny.png"
+    },
+    {
+      "epw": "weather_data/USA_CO_Denver.Intl.AP.725650_TMYx.2011-2025.epw",
+      "stem": "USA_CO_Denver.Intl.AP.725650_TMYx.2011-2025",
+      "city": "Denver, CO",
+      "zone": "5B",
+      "zoneName": "Cool - Dry",
+      "koppen": "BSk/H",
+      "zonePublished": true,
+      "bandPng": "out/zonegrid/bands/5b-denver-co.png"
+    }
+  ],
+  "map": "out/zonegrid/climate-zones-map.png",
+  "png": "out/zonegrid/climate-zones.png",
+  "pngWidth": 4800,
+  "pngHeight": 2280
+}

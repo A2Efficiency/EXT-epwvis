@@ -132,6 +132,11 @@ python -m http.server 8000
 Query params: `epw`, `units` (IP|SI), `hbase`, `cbase`, `occstart`, `occend`,
 `titles` (0 suppresses in-chart titles), `export=1` (strips page chrome).
 
+The representative-day panel captions name the statistic (`31 Tue · mean
+39.9°F`) via `drawRepresentativeDays`'s `valuePrefix`. Without it a bare number
+reads as the day's peak, which it only is when the ranking basis happens to be
+the daily maximum.
+
 `monthly.html` takes the same `epw`, `units`, `titles` and `export`, plus
 `days` (`all|weekday|weekend`), `repvar` (`dpt|dbt`), `repbasis`
 (`mean|max|min`) and `repkind` (`low|median|peak`):
@@ -220,6 +225,64 @@ reasonable and are not: `#007a88` (the existing `tempLine`) misses the chroma
 floor as a categorical slot, and brand green `#4a8b2c` against the teal is
 ΔE 4.3 under tritanopia — indistinguishable. The single-series clouds keep
 `tempLine`, where the categorical checks do not apply.
+
+**The humidity band charts count DEW POINT, and that is the whole point.** The
+published rubrics (`DP_BANDS_COMFORT`, 5 bands; `DP_BANDS_IAQ`, 7 bands ending
+at the ASHRAE 160 mold threshold) are written for *zone* relative humidity. An
+EPW only carries *outdoor* RH, which says almost nothing about a space — 60% at
+40 °F is bone dry once that air is heated to 70 °F. Charting the file's RH
+column directly produced a real, wrong answer: Craters of the Moon, a high
+desert, came out 34% "Critical". Dew point is the property that survives the
+trip, because sensible heating and cooling leave it unchanged, so the outdoor
+dew point *is* the zone dew point of a space on outdoor air with no
+dehumidification. Each RH threshold is therefore converted to the dew point that
+produces it at a stated indoor dry bulb, and the hours are counted on the EPW's
+dew-point column. The same file then reads 61% "Very dry" and 0.1% "Critical",
+which is correct.
+
+**The dry side is transposed at 70 °F and the humid side at 75 °F**
+(`DP_SETPOINT`), because that is where each band's risk actually lives: the dry
+bands matter in the heating season at the cooler setpoint, the humid ones in the
+cooling season at the warmer one. The two bounds the user specified — 30% at
+70 °F and 60% at 75 °F — anchor the acceptable band, and every other bound
+follows the same rule (≤ 30% at `cool`, ≥ 50% at `warm`). The resulting
+thresholds are physically recognisable: 55 °F Td is a typical coil leaving
+condition, 60 °F Td is the usual "muggy" line, 64.5 °F Td is "oppressive".
+
+Mechanics worth knowing before touching this:
+
+- `resolveDewPointBands(bands, isIP)` turns the RH bounds into dew points via
+  psychrolib and is the single source of truth for the numbers, the axis
+  `range` strings and the `source` strings that name the derivation. Do not
+  hardcode a threshold anywhere else.
+- **psychrolib is global state.** epw2json, epwCharts and this module all
+  assume SI. `dewPointAtRH()` pins SI before asking and converts at the edges;
+  keep it that way.
+- Bands are **half-open** (`lo` inclusive, `hi` exclusive, `null` = open end) so
+  they tile the range and the counts sum to the readable hours. Missing
+  dew-point values go to `missing`, never into the driest band.
+- **SI needs one decimal.** 25% and 30% at 70 °F are 0.3 °C and 2.9 °C; rounding
+  both to whole degrees collapses a 5-point RH spread.
+- Both charts always count **all 8,760 hours** and ignore `monthly.html`'s Days
+  selector — mold does not observe an occupancy schedule, and a shared
+  denominator lets the two charts be read against each other.
+- Empty bands are **kept**, unlike `drawUTCICategoryBars`: a zero in Critical is
+  the answer, not a row to reclaim space from.
+
+**The band ramps are not UTCI_RAMP's steps, and that was measured.** Both are
+ordered diverging ramps of the same shape (orange dry pole, dark green
+acceptable centre, teal humid pole), but they use `#f2a02e` and `#4fc3d0` where
+UTCI uses `#ffc27a` and `#a5e0e7`. The UTCI light steps fail the ordinal
+light-end contrast floor (1.54:1 and 1.42:1 on white, floor 2:1), and `#a5e0e7`
+against `#00a3b4` is ΔE 10.3 for *normal* vision — a hard fail. As with the UTCI
+ramp, the categorical lightness-band and chroma-floor checks do not apply; the
+criteria are monotonic lightness per half (both pass, adjacent ΔL ≥ 0.06) and
+adjacent separation (worst ΔE 12.6 deutan / 15.5 normal).
+
+**`labelInkOn` compares contrast ratios, not a luminance threshold.** The old
+`L > 0.5` rule put white on `#4fc3d0` at 2.3:1 where dark ink gives 8.9:1. The
+fix also repaints the pale steps of the existing UTCI category bars, so expect a
+real (improving) diff in those PNGs, not just antialiasing noise.
 
 **A representative day is a real date, never a composite.** Days in a month are
 ranked by one statistic of one variable (`monthlyRepresentativeDays(days, key,

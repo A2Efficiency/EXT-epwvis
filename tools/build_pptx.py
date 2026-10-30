@@ -66,6 +66,21 @@ def show(p):
         return p
 
 
+def title_size(text, base=26, fits=33, floor=16):
+    """Shrink a long station name so the slide title stays on ONE line.
+
+    The title box is 8in of 26pt bold, which holds about 33 characters. A
+    41-character name like "New York-Central Park Obs-Belvedere Castle" wraps,
+    and the second line lands on the facts block below it. Only the font size
+    moves here -- an earlier fix that repositioned the block instead pushed the
+    title off-slide, so nothing else is touched.
+    """
+    n = len(text or "")
+    if n <= fits:
+        return base
+    return max(floor, round(base * fits / n))
+
+
 def layout(prs, name):
     for lay in prs.slide_masters[0].slide_layouts:
         if lay.name == name:
@@ -196,8 +211,9 @@ def add_location_slide(prs, loc):
     meta = loc.get("meta", {})
     slide = prs.slides.add_slide(layout(prs, L_BLANK))
 
+    title = meta.get("station") or loc["name"]
     textbox(slide, Inches(0.92), Inches(0.28), Inches(8.0), Inches(0.72),
-            [(meta.get("station") or loc["name"], 26, True)])
+            [(title, title_size(title), True)])
 
     # --- left column: facts, classification, map, comfort hours ---
     facts = []

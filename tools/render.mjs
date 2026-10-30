@@ -35,6 +35,9 @@ const CBASE = arg('cbase', null);
 const OCCS  = arg('occstart', null);
 const OCCE  = arg('occend', null);
 const TITLES = arg('titles', '0');   // in-chart titles off by default (deck use)
+// Which locations.json to read. tools/make_locations.py can write one for any
+// folder of .epw files, so a set that did not come from fetch_epw.py still renders.
+const LOCFILE = arg('locations', 'tools/locations.json');
 
 // ---- static server ------------------------------------------------------
 const MIME = {
@@ -67,7 +70,7 @@ function serve() {
 
 // ---- locations ----------------------------------------------------------
 function loadLocations() {
-  const p = path.join(HERE, 'locations.json');
+  const p = path.isAbsolute(LOCFILE) ? LOCFILE : path.join(ROOT, LOCFILE);
   if (!fs.existsSync(p)) {
     console.error(`missing ${p} -- create it, or run tools/fetch_epw.mjs first`);
     process.exit(1);
