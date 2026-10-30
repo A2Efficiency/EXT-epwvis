@@ -1,0 +1,98 @@
+{
+  "title": "LLLC+HVAC Weather Locations",
+  "client": "NEEA · LLLC+HVAC Expansion",
+  "note": "Station set from Kathryn Bae's 10/29/2026 climate-zone proposal (approved by Chris Wolgamott 10/30). DOE/PNNL reference cities are the ASHRAE 90.1 prototype-model locations for each zone.",
+  "hBase": 65,
+  "cBase": 65,
+  "zoneColors": {
+    "4C": "#0090a2",
+    "5B": "#e55a00",
+    "6B": "#5b4a9a"
+  },
+  "locations": [
+    {
+      "slug": "seattle-tacoma-intl-ap",
+      "city": "Seattle-Tacoma, WA",
+      "short": "Seattle",
+      "codeZone": "4C",
+      "modeled": true,
+      "role": "Proposed · also DOE/PNNL 4C city",
+      "roleKind": "proposed",
+      "epw": "weather_files/lllc/seattle-tacoma-intl-ap.epw"
+    },
+    {
+      "slug": "portland-intl-ap",
+      "city": "Portland, OR",
+      "short": "Portland",
+      "codeZone": "4C",
+      "role": "Populated NEEA city",
+      "roleKind": "populated",
+      "epw": "weather_files/lllc/portland-intl-ap.epw"
+    },
+    {
+      "slug": "eugene-ap-sweet-field",
+      "city": "Eugene, OR",
+      "short": "Eugene",
+      "codeZone": "4C",
+      "role": "Populated NEEA city",
+      "roleKind": "populated",
+      "epw": "weather_files/lllc/eugene-ap-sweet-field.epw"
+    },
+    {
+      "slug": "boise-ap-gowen-field-angb",
+      "city": "Boise, ID",
+      "short": "Boise",
+      "codeZone": "5B",
+      "role": "Current pick · PNNL 2018 IECC",
+      "roleKind": "current",
+      "epw": "weather_files/lllc/boise-ap-gowen-field-angb.epw"
+    },
+    {
+      "slug": "spokane-intl-ap",
+      "city": "Spokane, WA",
+      "short": "Spokane",
+      "codeZone": "5B",
+      "modeled": true,
+      "role": "Proposed · PNNL 2021 WSEC",
+      "roleKind": "proposed",
+      "epw": "weather_files/lllc/spokane-intl-ap.epw"
+    },
+    {
+      "slug": "denver-intl-ap",
+      "city": "Denver, CO",
+      "short": "Denver",
+      "codeZone": "5B",
+      "role": "DOE/PNNL 5B city",
+      "roleKind": "doe",
+      "epw": "weather_files/lllc/denver-intl-ap.epw"
+    },
+    {
+      "slug": "missoula-intl-ap",
+      "city": "Missoula, MT",
+      "short": "Missoula",
+      "codeZone": "6B",
+      "modeled": true,
+      "role": "Proposed",
+      "roleKind": "proposed",
+      "epw": "weather_files/lllc/missoula-intl-ap.epw"
+    },
+    {
+      "slug": "great-falls",
+      "city": "Great Falls, MT",
+      "short": "Great Falls",
+      "codeZone": "6B",
+      "role": "DOE/PNNL 6B city",
+      "roleKind": "doe",
+      "epw": "weather_files/lllc/great-falls.epw"
+    },
+    {
+      "slug": "helena-rgnl-ap",
+      "city": "Helena, MT",
+      "short": "Helena",
+      "codeZone": "6B",
+      "role": "Prior A2 candidate",
+      "roleKind": "current",
+      "epw": "weather_files/lllc/helena-rgnl-ap.epw"
+    }
+  ]
+}

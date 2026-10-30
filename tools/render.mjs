@@ -20,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const OUT  = path.join(ROOT, 'out');
 
 // ---- args ---------------------------------------------------------------
 function arg(name, dflt) {
@@ -38,6 +37,9 @@ const TITLES = arg('titles', '0');   // in-chart titles off by default (deck use
 // Which locations.json to read. tools/make_locations.py can write one for any
 // folder of .epw files, so a set that did not come from fetch_epw.py still renders.
 const LOCFILE = arg('locations', 'tools/locations.json');
+// Where PNGs and manifest.json land. Default out/; a project can keep its own
+// set (e.g. --out out/lllc) without overwriting another project's manifest.
+const OUT = path.resolve(ROOT, arg('out', 'out'));
 
 // ---- static server ------------------------------------------------------
 const MIME = {
@@ -167,7 +169,7 @@ for (const loc of locations) {
     charts
   });
 
-  console.log(`${Object.keys(charts).length} charts -> out/${loc.slug}/`);
+  console.log(`${Object.keys(charts).length} charts -> ${path.relative(ROOT, dir)}/`);
   await ctx.close();
 }
 
@@ -188,7 +190,8 @@ if (manifest.locations.length > 1) {
   page.on('pageerror', (e) => console.error(`  [page error] ${e.message}`));
 
   process.stdout.write('comparison … ');
-  await page.goto(`${base}/compare.html?export=1&titles=${TITLES}`,
+  const manRel = path.relative(ROOT, path.join(OUT, 'manifest.json')).replace(/\\/g, '/');
+  await page.goto(`${base}/compare.html?export=1&titles=${TITLES}&manifest=${encodeURIComponent(manRel)}`,
                   { waitUntil: 'networkidle' });
   try {
     await page.waitForFunction('window.__compareReady === true', { timeout: 60000 });
@@ -220,7 +223,7 @@ if (manifest.locations.length > 1) {
     };
     fs.writeFileSync(path.join(OUT, 'manifest.json'),
                      JSON.stringify(manifest, null, 2));
-    console.log(`${Object.keys(charts).length} charts -> out/compare/`);
+    console.log(`${Object.keys(charts).length} charts -> ${path.relative(ROOT, dir)}/`);
   } catch {
     const err = await page.evaluate('window.__compareError || "timed out"');
     console.error(`FAILED (${err}) -- deck will build without the summary slide`);
@@ -231,4 +234,4 @@ if (manifest.locations.length > 1) {
 await browser.close();
 server.close();
 
-console.log(`\nmanifest: out/manifest.json  (${manifest.locations.length} location(s))`);
+console.log(`\nmanifest: ${path.relative(ROOT, path.join(OUT, "manifest.json"))}  (${manifest.locations.length} location(s))`);

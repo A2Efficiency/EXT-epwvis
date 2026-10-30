@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "seattle-tacoma-intl-ap",
+    "name": "Seattle-Tacoma Intl AP (WA, USA)",
+    "epw": "weather_files/lllc/seattle-tacoma-intl-ap.epw"
+  },
+  {
+    "slug": "portland-intl-ap",
+    "name": "Portland Intl AP (OR, USA)",
+    "epw": "weather_files/lllc/portland-intl-ap.epw"
+  },
+  {
+    "slug": "eugene-ap-sweet-field",
+    "name": "Eugene AP-Sweet Field (OR, USA)",
+    "epw": "weather_files/lllc/eugene-ap-sweet-field.epw"
+  },
+  {
+    "slug": "boise-ap-gowen-field-angb",
+    "name": "Boise AP-Gowen Field ANGB (ID, USA)",
+    "epw": "weather_files/lllc/boise-ap-gowen-field-angb.epw"
+  },
+  {
+    "slug": "spokane-intl-ap",
+    "name": "Spokane Intl AP (WA, USA)",
+    "epw": "weather_files/lllc/spokane-intl-ap.epw"
+  },
+  {
+    "slug": "denver-intl-ap",
+    "name": "Denver Intl AP (CO, USA)",
+    "epw": "weather_files/lllc/denver-intl-ap.epw"
+  },
+  {
+    "slug": "missoula-intl-ap",
+    "name": "Missoula Intl AP (MT, USA)",
+    "epw": "weather_files/lllc/missoula-intl-ap.epw"
+  },
+  {
+    "slug": "great-falls",
+    "name": "Great Falls (MT, USA)",
+    "epw": "weather_files/lllc/great-falls.epw"
+  },
+  {
+    "slug": "helena-rgnl-ap",
+    "name": "Helena Rgnl AP (MT, USA)",
+    "epw": "weather_files/lllc/helena-rgnl-ap.epw"
+  }
+]

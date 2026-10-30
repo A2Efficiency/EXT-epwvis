@@ -196,3 +196,24 @@ self-contained images (e.g. for a report rather than a deck).
   HDD18/CDD10 and labels it `(computed)`.
 - **`lib/js/epwOTC.js` is shared.** The UTCI strategy math was extracted from
   `index.html` so the viewer and the deck compute comfort hours identically.
+
+## Multi-location comparison deck (rows of cities x columns of metrics)
+
+For a study that compares several stations side by side (first used for the
+NEEA LLLC+HVAC weather review), a second page and builder sit beside the
+per-location pipeline:
+
+```bash
+node tools/render.mjs --locations tools/locations-lllc.json --out out/lllc   # appendix slides
+node tools/render_grid.mjs --config tools/lllc-weather.json --out out/lllc/grid
+python tools/build_weather_deck.py                                             # out/lllc/LLLC-weather-deck.pptx
+```
+
+- `grid.html` + `lib/js/epwGrid.js` draw three cells per location: UTCI
+  distribution (cold -> hot), monthly HDD/CDD, and monthly temperature range
+  with the annual 10% / 90% thresholds. **Every cell uses a domain shared
+  across the whole set**, so rows (and slides) can be read against each other.
+- The config (`tools/lllc-weather.json`) holds each station's code climate
+  zone, role (proposed / DOE-PNNL reference / comparison) and weather path.
+- `render.mjs --out` keeps a project's PNGs and manifest out of `out/`.
+- Takeaway sentences in the deck are computed from `grid.json`, not typed.

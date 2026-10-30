@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>epwvis — Location Grid</title>
+
+<link rel="stylesheet" href="./lib/css/epwDashboard.css?v=0.1.0" type="text/css"/>
+
+<script type="text/javascript" src="./lib/js/d3/d3.min.js"></script>
+<script type="text/javascript" src="./lib/js/psychrolib.js"></script>
+<script type="text/javascript" src="./lib/js/epw2json.js"></script>
+<script type="text/javascript" src="./lib/js/solarPV.js"></script>
+<script type="text/javascript" src="./lib/js/utci.js"></script>
+<script type="text/javascript" src="./lib/js/epwOTC.js"></script>
+<script type="text/javascript" src="./data/usGeo.js"></script>
+<script type="text/javascript" src="./lib/js/epwDashboard.js"></script>
+<script type="text/javascript" src="./lib/js/epwGrid.js"></script>
+<style>
+  .grid-row { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0; }
+  .grid-row h3 { width: 150px; font: 600 14px "Open Sans", sans-serif; margin: 0; }
+</style>
+</head>
+
+<body class="epw-dashboard">
+
+<div class="dash-toolbar" id="dashToolbar">
+  <h1>Location Grid</h1>
+  <span class="dash-status" id="dashStatus">Loading config…</span>
+</div>
+
+<div class="dash-page" id="dashPage">
+  <section class="dash-block">
+    <h2>Study region</h2>
+    <figure class="dash-figure" id="chartMap" data-chart="grid-map"></figure>
+  </section>
+  <section class="dash-block" id="rows">
+    <h2>Per-location cells (shared scales across every location)</h2>
+  </section>
+</div>
+
+<script type="text/javascript">
+(function () {
+  'use strict';
+  // One page per study, driven by a JSON config (tools/lllc-weather.json):
+  //   grid.html?config=tools/lllc-weather.json&export=1
+  // Every location is drawn three times -- UTCI, degree days, temperature
+  // range -- on domains computed over the WHOLE set, so a cell from one slide
+  // can be read against a cell from another.
+  function params() {
+    var out = {};
+    location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
+      if (!kv) return;
+      var i = kv.indexOf('=');
+      out[decodeURIComponent(i < 0 ? kv : kv.slice(0, i))] =
+        i < 0 ? '' : decodeURIComponent(kv.slice(i + 1));
+    });
+    return out;
+  }
+  var Q = params();
+  if (Q.export === '1') document.body.classList.add('epw-export');
+
+  function status(msg, cls) {
+    var el = document.getElementById('dashStatus');
+    el.textContent = msg;
+    el.className = 'dash-status' + (cls ? ' ' + cls : '');
+  }
+
+  function loadLocation(loc, cfg) {
+    var url = loc.epw || ('weather_files/' + loc.slug + '.epw');
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error(url + ': HTTP ' + r.status);
+      return r.text();
+    }).then(function (text) {
+      var epw = epw2json(text);
+      var records = EpwDashboard.buildRecords(epw, true);
+      var s = EpwGrid.locationStats(epw, records, cfg.hBase || 65, cfg.cBase || 65);
+      s.lat = parseFloat(epw.latitude);
+      s.lon = parseFloat(epw.longitude);
+      s.elevationFt = Math.round(parseFloat(epw.elevation) * 3.28084);
+      return s;
+    });
+  }
+
+  function build(cfg, stats) {
+    var locs = cfg.locations;
+    var all = locs.map(function (l) { return stats[l.slug]; });
+
+    // Shared domains over the whole set.
+    var utciMax = d3.max(all, function (s) {
+      var t = d3.sum(s.utci) || 1;
+      return d3.max(s.utci) / t * 100;
+    });
+    var ddMax = d3.max(all, function (s) {
+      return d3.max(s.dd, function (d) { return Math.max(d.hdd, d.cdd); });
+    });
+    var tLo = Math.floor((d3.min(all, function (s) { return s.min; }) - 4) / 10) * 10;
+    var tHi = Math.ceil((d3.max(all, function (s) { return s.max; }) + 4) / 10) * 10;
+
+    var rows = d3.select('#rows');
+    locs.forEach(function (l) {
+      var s = stats[l.slug];
+      var row = rows.append('div').attr('class', 'grid-row');
+      row.append('h3').text(l.city);
+      ['utci', 'dd', 'temp'].forEach(function (k) {
+        row.append('figure').attr('class', 'dash-figure')
+           .attr('id', 'c-' + k + '-' + l.slug)
+           .attr('data-chart', 'grid-' + k + '-' + l.slug);
+      });
+      EpwGrid.drawUTCIDistribution('#c-utci-' + l.slug, s.utci, { yMax: utciMax, stats: s });
+      EpwGrid.drawDegreeDaysCompact('#c-dd-' + l.slug, s, { yMax: ddMax });
+      EpwGrid.drawTempExtremes('#c-temp-' + l.slug, s, { yDomain: [tLo, tHi] });
+    });
+
+    EpwGrid.drawRegionMap('#chartMap', locs.map(function (l) {
+      return { slug: l.slug, short: l.short, lat: stats[l.slug].lat, lon: stats[l.slug].lon,
+               zone: l.codeZone, color: cfg.zoneColors[l.codeZone], roleKind: l.roleKind };
+    }), { width: 760, height: 600 });
+
+    // Numbers for the deck's summary table, rounded where a slide would round.
+    var pub = {};
+    locs.forEach(function (l) {
+      var s = stats[l.slug];
+      pub[l.slug] = {
+        hdd: s.hdd, cdd: s.cdd, hBase: s.hBase, cBase: s.cBase,
+        min: s.min, max: s.max, p01: s.p01, p10: s.p10, p50: s.p50, p90: s.p90, p99: s.p99,
+        mean: s.mean, meanColdest10: s.meanColdest10, meanHottest10: s.meanHottest10,
+        utci: s.utci, utciColdPct: s.utciColdPct, utciNoStressPct: s.utciNoStressPct,
+        utciComfortPct: s.utciComfortPct, utciHeatPct: s.utciHeatPct,
+        lat: s.lat, lon: s.lon, elevationFt: s.elevationFt, hours: s.hours,
+        monthly: s.monthly, dd: s.dd
+      };
+    });
+    window.__gridStats = pub;
+    window.__gridDomains = { utciMax: utciMax, ddMax: ddMax, temp: [tLo, tHi] };
+  }
+
+  fetch(Q.config || 'tools/lllc-weather.json')
+    .then(function (r) { if (!r.ok) throw new Error('config HTTP ' + r.status); return r.json(); })
+    .then(function (cfg) {
+      status('Loading ' + cfg.locations.length + ' weather files…');
+      var stats = {};
+      // Sequential: the UTCI pass is heavy and parallel parses only thrash.
+      return cfg.locations.reduce(function (p, l) {
+        return p.then(function () {
+          return loadLocation(l, cfg).then(function (s) { stats[l.slug] = s; });
+        });
+      }, Promise.resolve()).then(function () { build(cfg, stats); });
+    })
+    .then(function () { status('Ready', 'ok'); window.__gridReady = true; })
+    .catch(function (err) {
+      status('Grid failed: ' + err.message, 'error');
+      window.__gridError = String(err.message);
+    });
+})();
+</script>
+</body>
+</html>
