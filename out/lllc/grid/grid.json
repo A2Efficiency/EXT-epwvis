@@ -2,7 +2,7 @@
   "config": {
     "title": "LLLC+HVAC Weather Locations",
     "client": "NEEA · LLLC+HVAC Expansion",
-    "note": "Station set from Kathryn Bae's 10/29/2026 climate-zone proposal (approved by Chris Wolgamott 10/30). DOE/PNNL reference cities are the ASHRAE 90.1 prototype-model locations for each zone.",
+    "note": "Station set from Kathryn Bae's 10/29/2026 climate-zone proposal (approved by Chris Wolgamott 10/30). DOE/PNNL reference cities are the ASHRAE 90.1 prototype-model locations for each zone. Redmond and Yakima added 11/2/2026 at K. Bae's request (SE 5B gas funder area).",
     "hBase": 65,
     "cBase": 65,
     "zoneColors": {
@@ -66,6 +66,24 @@
         "role": "DOE/PNNL 5B city",
         "roleKind": "doe",
         "epw": "weather_files/lllc/denver-intl-ap.epw"
+      },
+      {
+        "slug": "redmond-muni-ap-roberts-field",
+        "city": "Redmond, OR",
+        "short": "Redmond",
+        "codeZone": "5B",
+        "role": "Central OR · gas funder area",
+        "roleKind": "populated",
+        "epw": "weather_files/lllc/redmond-muni-ap-roberts-field.epw"
+      },
+      {
+        "slug": "yakima-af-mcallister-field",
+        "city": "Yakima, WA",
+        "short": "Yakima",
+        "codeZone": "5B",
+        "role": "SE WA · gas funder area",
+        "roleKind": "populated",
+        "epw": "weather_files/lllc/yakima-af-mcallister-field.epw"
       },
       {
         "slug": "missoula-intl-ap",
@@ -1209,6 +1227,376 @@
         }
       ]
     },
+    "redmond-muni-ap-roberts-field": {
+      "hdd": 6002,
+      "cdd": 936,
+      "hBase": 65,
+      "cBase": 65,
+      "min": 6.079999999999998,
+      "max": 102.02,
+      "p01": 15.079999999999998,
+      "p10": 32,
+      "p50": 48.92,
+      "p90": 75.92,
+      "p99": 91.03999999999999,
+      "mean": 51.118691780821756,
+      "meanColdest10": 23.825205479451974,
+      "meanHottest10": 84.06726027397252,
+      "utci": [
+        0,
+        0,
+        235,
+        1878,
+        2314,
+        1803,
+        908,
+        473,
+        532,
+        549,
+        68
+      ],
+      "utciColdPct": 50.53652968036529,
+      "utciNoStressPct": 30.947488584474886,
+      "utciComfortPct": 10.365296803652967,
+      "utciHeatPct": 18.515981735159816,
+      "lat": 44.256,
+      "lon": -121.139,
+      "elevationFt": 3071,
+      "hours": 8760,
+      "monthly": [
+        {
+          "month": 1,
+          "min": 6.079999999999998,
+          "max": 55.040000000000006,
+          "p10": 19.148,
+          "p50": 34.88,
+          "p90": 46.94
+        },
+        {
+          "month": 2,
+          "min": 10.940000000000001,
+          "max": 62.06,
+          "p10": 24.08,
+          "p50": 36.32,
+          "p90": 47.102
+        },
+        {
+          "month": 3,
+          "min": 15.079999999999998,
+          "max": 77,
+          "p10": 30.415999999999997,
+          "p50": 40.730000000000004,
+          "p90": 53.96
+        },
+        {
+          "month": 4,
+          "min": 24.08,
+          "max": 80.06,
+          "p10": 36.68,
+          "p50": 46.849999999999994,
+          "p90": 60.980000000000004
+        },
+        {
+          "month": 5,
+          "min": 26.96,
+          "max": 84.92,
+          "p10": 44.42,
+          "p50": 55.94,
+          "p90": 73.03999999999999
+        },
+        {
+          "month": 6,
+          "min": 37.04,
+          "max": 96.98,
+          "p10": 46.94,
+          "p50": 62.06,
+          "p90": 82.94
+        },
+        {
+          "month": 7,
+          "min": 46.04,
+          "max": 96.98,
+          "p10": 57.019999999999996,
+          "p50": 71.96000000000001,
+          "p90": 87.98
+        },
+        {
+          "month": 8,
+          "min": 40.82,
+          "max": 102.02,
+          "p10": 54.86,
+          "p50": 71.96000000000001,
+          "p90": 87.98
+        },
+        {
+          "month": 9,
+          "min": 35.96,
+          "max": 91.94,
+          "p10": 46.022,
+          "p50": 62.06,
+          "p90": 80.96000000000001
+        },
+        {
+          "month": 10,
+          "min": 19.939999999999998,
+          "max": 77.53999999999999,
+          "p10": 36.5,
+          "p50": 49.91,
+          "p90": 62.906000000000006
+        },
+        {
+          "month": 11,
+          "min": 6.079999999999998,
+          "max": 66.02,
+          "p10": 24.98,
+          "p50": 41,
+          "p90": 53.258
+        },
+        {
+          "month": 12,
+          "min": 8.059999999999999,
+          "max": 57.019999999999996,
+          "p10": 24.08,
+          "p50": 35.33,
+          "p90": 44.18600000000001
+        }
+      ],
+      "dd": [
+        {
+          "hdd": 953.9399999999994,
+          "cdd": 0
+        },
+        {
+          "hdd": 816.165,
+          "cdd": 0
+        },
+        {
+          "hdd": 723.8075000000003,
+          "cdd": 6.080000000000001
+        },
+        {
+          "hdd": 524.1475000000002,
+          "cdd": 9.385000000000003
+        },
+        {
+          "hdd": 299.16500000000025,
+          "cdd": 53.4725
+        },
+        {
+          "hdd": 185.59,
+          "cdd": 153.7525
+        },
+        {
+          "hdd": 55.24499999999997,
+          "cdd": 290.9099999999996
+        },
+        {
+          "hdd": 76.5975,
+          "cdd": 289.32750000000016
+        },
+        {
+          "hdd": 204.59499999999989,
+          "cdd": 123.06250000000003
+        },
+        {
+          "hdd": 479.6150000000001,
+          "cdd": 9.515
+        },
+        {
+          "hdd": 742.3950000000004,
+          "cdd": 0.1274999999999995
+        },
+        {
+          "hdd": 941.0475000000001,
+          "cdd": 0
+        }
+      ]
+    },
+    "yakima-af-mcallister-field": {
+      "hdd": 5709,
+      "cdd": 1281,
+      "hBase": 65,
+      "cBase": 65,
+      "min": 8.959999999999997,
+      "max": 107.96000000000001,
+      "p01": 19.04,
+      "p10": 30.02,
+      "p50": 51.08,
+      "p90": 80.06,
+      "p99": 96.98,
+      "mean": 52.86855479452016,
+      "meanColdest10": 24.258561643835403,
+      "meanHottest10": 88.15136986301374,
+      "utci": [
+        0,
+        7,
+        204,
+        1885,
+        2021,
+        1782,
+        1018,
+        554,
+        467,
+        605,
+        217
+      ],
+      "utciColdPct": 46.997716894977174,
+      "utciNoStressPct": 31.963470319634702,
+      "utciComfortPct": 11.621004566210045,
+      "utciHeatPct": 21.038812785388128,
+      "lat": 46.568,
+      "lon": -120.543,
+      "elevationFt": 1066,
+      "hours": 8760,
+      "monthly": [
+        {
+          "month": 1,
+          "min": 8.959999999999997,
+          "max": 57.019999999999996,
+          "p10": 24.08,
+          "p50": 33.8,
+          "p90": 41
+        },
+        {
+          "month": 2,
+          "min": 8.959999999999997,
+          "max": 59,
+          "p10": 21.92,
+          "p50": 35.96,
+          "p90": 46.04
+        },
+        {
+          "month": 3,
+          "min": 21.92,
+          "max": 66.02,
+          "p10": 30.02,
+          "p50": 44.06,
+          "p90": 57.92
+        },
+        {
+          "month": 4,
+          "min": 28.04,
+          "max": 84.02,
+          "p10": 37.94,
+          "p50": 51.08,
+          "p90": 66.02
+        },
+        {
+          "month": 5,
+          "min": 35.06,
+          "max": 95,
+          "p10": 44.06,
+          "p50": 60.08,
+          "p90": 80.96000000000001
+        },
+        {
+          "month": 6,
+          "min": 42.08,
+          "max": 98.96000000000001,
+          "p10": 53.06,
+          "p50": 69.08000000000001,
+          "p90": 87.08000000000001
+        },
+        {
+          "month": 7,
+          "min": 51.08,
+          "max": 107.96000000000001,
+          "p10": 59.954,
+          "p50": 75.92,
+          "p90": 95
+        },
+        {
+          "month": 8,
+          "min": 48.019999999999996,
+          "max": 102.02,
+          "p10": 60.08,
+          "p50": 73.94,
+          "p90": 87.98
+        },
+        {
+          "month": 9,
+          "min": 39.019999999999996,
+          "max": 98.06,
+          "p10": 47.641999999999996,
+          "p50": 62.96,
+          "p90": 84.11000000000001
+        },
+        {
+          "month": 10,
+          "min": 26.060000000000002,
+          "max": 75.02,
+          "p10": 37.994,
+          "p50": 51.08,
+          "p90": 64.03999999999999
+        },
+        {
+          "month": 11,
+          "min": 17.96,
+          "max": 71.06,
+          "p10": 26.96,
+          "p50": 37.94,
+          "p90": 51.08
+        },
+        {
+          "month": 12,
+          "min": 14,
+          "max": 71.06,
+          "p10": 19.939999999999998,
+          "p50": 33.08,
+          "p90": 42.026
+        }
+      ],
+      "dd": [
+        {
+          "hdd": 990.7425000000007,
+          "cdd": 0
+        },
+        {
+          "hdd": 843.7350000000004,
+          "cdd": 0
+        },
+        {
+          "hdd": 649.7225000000005,
+          "cdd": 0.042499999999999837
+        },
+        {
+          "hdd": 417.68750000000006,
+          "cdd": 23.675000000000004
+        },
+        {
+          "hdd": 229.79499999999982,
+          "cdd": 128.79249999999993
+        },
+        {
+          "hdd": 90.86749999999998,
+          "cdd": 224.08249999999998
+        },
+        {
+          "hdd": 34.77750000000001,
+          "cdd": 414.9374999999998
+        },
+        {
+          "hdd": 38.987499999999976,
+          "cdd": 317.7249999999999
+        },
+        {
+          "hdd": 169.55500000000018,
+          "cdd": 162.89499999999992
+        },
+        {
+          "hdd": 448.7875,
+          "cdd": 7.7725000000000035
+        },
+        {
+          "hdd": 782.7774999999997,
+          "cdd": 0.8800000000000013
+        },
+        {
+          "hdd": 1011.6774999999994,
+          "cdd": 0.3325000000000002
+        }
+      ]
+    },
     "missoula-intl-ap": {
       "hdd": 7945,
       "cdd": 733,
@@ -1770,7 +2158,7 @@
     "ddMax": 1308.9000000000017,
     "temp": [
       -30,
-      110
+      120
     ]
   },
   "charts": {
@@ -1793,6 +2181,12 @@
     "grid-utci-denver-intl-ap": "out/lllc/grid/grid-utci-denver-intl-ap.png",
     "grid-dd-denver-intl-ap": "out/lllc/grid/grid-dd-denver-intl-ap.png",
     "grid-temp-denver-intl-ap": "out/lllc/grid/grid-temp-denver-intl-ap.png",
+    "grid-utci-redmond-muni-ap-roberts-field": "out/lllc/grid/grid-utci-redmond-muni-ap-roberts-field.png",
+    "grid-dd-redmond-muni-ap-roberts-field": "out/lllc/grid/grid-dd-redmond-muni-ap-roberts-field.png",
+    "grid-temp-redmond-muni-ap-roberts-field": "out/lllc/grid/grid-temp-redmond-muni-ap-roberts-field.png",
+    "grid-utci-yakima-af-mcallister-field": "out/lllc/grid/grid-utci-yakima-af-mcallister-field.png",
+    "grid-dd-yakima-af-mcallister-field": "out/lllc/grid/grid-dd-yakima-af-mcallister-field.png",
+    "grid-temp-yakima-af-mcallister-field": "out/lllc/grid/grid-temp-yakima-af-mcallister-field.png",
     "grid-utci-missoula-intl-ap": "out/lllc/grid/grid-utci-missoula-intl-ap.png",
     "grid-dd-missoula-intl-ap": "out/lllc/grid/grid-dd-missoula-intl-ap.png",
     "grid-temp-missoula-intl-ap": "out/lllc/grid/grid-temp-missoula-intl-ap.png",

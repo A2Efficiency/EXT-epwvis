@@ -43,5 +43,15 @@
     "slug": "helena-rgnl-ap",
     "name": "Helena Rgnl AP (MT, USA)",
     "epw": "weather_files/lllc/helena-rgnl-ap.epw"
+  },
+  {
+    "slug": "redmond-muni-ap-roberts-field",
+    "name": "Redmond Muni AP-Roberts Field (OR, USA)",
+    "epw": "weather_files/lllc/redmond-muni-ap-roberts-field.epw"
+  },
+  {
+    "slug": "yakima-af-mcallister-field",
+    "name": "Yakima AF-McAllister Field (WA, USA)",
+    "epw": "weather_files/lllc/yakima-af-mcallister-field.epw"
   }
 ]

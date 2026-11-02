@@ -8,3 +8,5 @@ weather_files/
 tools/node_modules/
 tools/package-lock.json
 tools/states-10m.json
+# generated decks live on SharePoint, not in git
+out/**/*.pptx

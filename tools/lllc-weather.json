@@ -1,7 +1,7 @@
 {
   "title": "LLLC+HVAC Weather Locations",
   "client": "NEEA · LLLC+HVAC Expansion",
-  "note": "Station set from Kathryn Bae's 10/29/2026 climate-zone proposal (approved by Chris Wolgamott 10/30). DOE/PNNL reference cities are the ASHRAE 90.1 prototype-model locations for each zone.",
+  "note": "Station set from Kathryn Bae's 10/29/2026 climate-zone proposal (approved by Chris Wolgamott 10/30). DOE/PNNL reference cities are the ASHRAE 90.1 prototype-model locations for each zone. Redmond and Yakima added 11/2/2026 at K. Bae's request (SE 5B gas funder area).",
   "hBase": 65,
   "cBase": 65,
   "zoneColors": {
@@ -65,6 +65,24 @@
       "role": "DOE/PNNL 5B city",
       "roleKind": "doe",
       "epw": "weather_files/lllc/denver-intl-ap.epw"
+    },
+    {
+      "slug": "redmond-muni-ap-roberts-field",
+      "city": "Redmond, OR",
+      "short": "Redmond",
+      "codeZone": "5B",
+      "role": "Central OR · gas funder area",
+      "roleKind": "populated",
+      "epw": "weather_files/lllc/redmond-muni-ap-roberts-field.epw"
+    },
+    {
+      "slug": "yakima-af-mcallister-field",
+      "city": "Yakima, WA",
+      "short": "Yakima",
+      "codeZone": "5B",
+      "role": "SE WA · gas funder area",
+      "roleKind": "populated",
+      "epw": "weather_files/lllc/yakima-af-mcallister-field.epw"
     },
     {
       "slug": "missoula-intl-ap",
