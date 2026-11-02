@@ -69,6 +69,12 @@ for (const name of names) {
   charts[name] = path.relative(ROOT, file).replace(/\\/g, '/');
 }
 
+// The map also as vector SVG, so a page can toggle individual markers
+// (each marker group carries data-slug).
+const mapSvg = await page.$eval('[data-chart="grid-map"] svg', (el) => el.outerHTML);
+fs.writeFileSync(path.join(OUT, 'grid-map.svg'), mapSvg);
+charts['grid-map-svg'] = path.relative(ROOT, path.join(OUT, 'grid-map.svg')).replace(/\\/g, '/');
+
 const result = {
   config: JSON.parse(fs.readFileSync(path.join(ROOT, CONFIG), 'utf8')),
   configPath: CONFIG,

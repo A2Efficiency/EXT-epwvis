@@ -2195,6 +2195,7 @@
     "grid-temp-great-falls": "out/lllc/grid/grid-temp-great-falls.png",
     "grid-utci-helena-rgnl-ap": "out/lllc/grid/grid-utci-helena-rgnl-ap.png",
     "grid-dd-helena-rgnl-ap": "out/lllc/grid/grid-dd-helena-rgnl-ap.png",
-    "grid-temp-helena-rgnl-ap": "out/lllc/grid/grid-temp-helena-rgnl-ap.png"
+    "grid-temp-helena-rgnl-ap": "out/lllc/grid/grid-temp-helena-rgnl-ap.png",
+    "grid-map-svg": "out/lllc/grid/grid-map.svg"
   }
 }
