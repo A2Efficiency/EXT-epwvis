@@ -60,7 +60,7 @@ def build(grid, manifest):
         meta, ch = m.get("meta", {}), m.get("charts", {})
         cities.append({
             "slug": slug, "city": l["city"], "short": l["short"], "zone": l["codeZone"],
-            "role": l["role"], "roleKind": l["roleKind"],
+            "role": l["role"], "roleKind": l["roleKind"], "modeled": bool(l.get("modeled")),
             "station": meta.get("station", ""), "stationZone": meta.get("ashraeZoneCode", ""),
             "facts": " · ".join(x for x in [meta.get("subtitle", ""), meta.get("elevation", ""),
                                              f"ASHRAE {meta.get('ashraeZone', '')}",
@@ -74,15 +74,29 @@ def build(grid, manifest):
                 "temp": img_uri(charts[f"grid-temp-{slug}"], 800),
                 "annual": img_uri(ch["temperature-annual"], 1600) if "temperature-annual" in ch else None,
                 "ddm": img_uri(ch["degree-days-monthly"], 1600) if "degree-days-monthly" in ch else None,
+                "profile": img_uri(ch["temperature-daily-profile"], 1600) if "temperature-daily-profile" in ch else None,
+                "ddt": img_uri(ch["degree-days-by-temperature"], 1600) if "degree-days-by-temperature" in ch else None,
+                "locmap": img_uri(ch["location-map"], 900) if "location-map" in ch else None,
+                "ucat": img_uri(ch["utci-categories"], 900) if "utci-categories" in ch else None,
             },
+            # Everything the two per-location backup slides print as text.
+            "meta": {k: meta.get(k, "") for k in ("subtitle", "latitude", "longitude", "elevation",
+                                                   "timezone", "stateName", "ashraeZone",
+                                                   "koppenCode", "koppenName", "koppenDescription")},
+            "totals": {k: m.get("totals", {}).get(k) for k in ("hddOccupied", "hddAll", "cddOccupied",
+                                                               "cddAll", "unit", "hBase", "cBase",
+                                                               "occStart", "occEnd", "occupiedHours",
+                                                               "totalHours")},
         })
 
     presets = [
         {"id": "all", "label": "All cities", "scope": "top", "slugs": [c["slug"] for c in cities]},
         {"id": "modeled", "label": "Modeled cities", "scope": "top",
-         "slugs": ["seattle-tacoma-intl-ap", "spokane-intl-ap", "missoula-intl-ap"]},
+         "slugs": [c["slug"] for c in cities if c["modeled"]]},
         {"id": "5b-doe", "scope": "cmp", "label": "Boise · Spokane · Denver",
          "slugs": ["boise-ap-gowen-field-angb", "spokane-intl-ap", "denver-intl-ap"], "note": t5b},
+        {"id": "5b-pair", "scope": "cmp", "label": "Boise vs. Spokane",
+         "slugs": ["boise-ap-gowen-field-angb", "spokane-intl-ap"]},
         {"id": "5b-se", "scope": "cmp", "label": "Boise · Redmond · Yakima",
          "slugs": ["boise-ap-gowen-field-angb", "redmond-muni-ap-roberts-field",
                    "yakima-af-mcallister-field"], "note": tse},
@@ -105,11 +119,11 @@ def build(grid, manifest):
     zone_notes = {"4C": [t4c], "5B": [t5b, tse], "6B": [t6b]}
     zone_subs = {
         "4C": "Seattle is both the proposed location and the DOE/PNNL 4C city · Portland and Eugene are populated NEEA cities",
-        "5B": "Boise, Spokane, the DOE/PNNL city Denver, and Redmond and Yakima for the SE 5B gas funder area",
+        "5B": "Boise and Spokane (both modeled), the DOE/PNNL city Denver, and Redmond and Yakima for the SE 5B gas funder area",
         "6B": "Missoula (proposed), Great Falls (DOE/PNNL 6B city) and Helena (prior A2 candidate)",
     }
     findings = [
-        ("SE 5B (Redmond, Yakima):", tse), ("5B choice:", t5b),
+        ("5B (Boise + Spokane):", t5b), ("SE 5B (Redmond, Yakima):", tse),
         ("Spokane vs. Missoula:", teast), ("4C:", t4c), ("6B:", t6b),
     ]
 
@@ -202,13 +216,23 @@ details { background:#fff; border:1px solid var(--line); border-radius:8px; marg
 summary { cursor:pointer; padding:12px 0; font-weight:600; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 summary .num { margin-left:auto; font-weight:400; color:var(--soft); font-size:13px; }
 .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
-details figure { margin:0 0 14px; } details img { width:100%; height:auto; }
+details figure { margin:0 0 14px; } details img { width:100%; height:auto; display:block; }
+.bk { border-top:1px solid var(--line); padding:16px 0 10px; }
+.bkt { font:700 20px/1.2 "DM Sans", "Open Sans", sans-serif; margin:0 0 10px; }
+.bk1 { display:grid; grid-template-columns: 300px 1fr; gap:24px; align-items:start; }
+.bk2 { display:grid; grid-template-columns: 1fr 260px; gap:24px; align-items:start; }
+.bk1 > *, .bk2 > * { min-width:0; }
+.facts { list-style:none; padding:0; margin:4px 0 12px; font-size:14px; } .facts li { margin:1px 0; }
+.zonehd { font-weight:700; font-size:17px; margin:0; }
+.callouts .co { margin:0 0 22px; font-size:14px; }
+.callouts .big { font:700 36px/1.1 "Open Sans", sans-serif; }
+.note { font-style:italic; font-size:14px; margin:4px 0 0; }
 figcaption { font-size:12.5px; color:var(--muted); }
 .methods p { margin:0 0 10px; }
 footer { color:var(--muted); font-size:12.5px; max-width:1240px; margin:0 auto; padding:0 16px 30px; }
 [hidden] { display:none !important; }
 @media (max-width: 860px) {
-  .maprow { grid-template-columns: 1fr; }
+  .maprow, .bk1, .bk2 { grid-template-columns: 1fr; }
   .bar { position:static; }
   .heads { display:none; }
   .row { grid-template-columns: 1fr; }
@@ -253,7 +277,7 @@ footer { color:var(--muted); font-size:12.5px; max-width:1240px; margin:0 auto; 
 
 <h2 id="numbers-h">Locations in numbers</h2>
 <section class="card">
-  <p class="sub">Modeled location first in each zone (bold) · all 8,760 hours of the typical year</p>
+  <p class="sub">Modeled locations in bold · all 8,760 hours of the typical year</p>
   <div class="tablewrap"><table id="numbers"><thead></thead><tbody></tbody></table></div>
   <p class="small">Code zones are county assignments. The station-level zone from the 2025 ASHRAE Handbook data (last row)
     differs for Boise, Spokane, Redmond and Missoula.</p>
@@ -277,7 +301,7 @@ footer { color:var(--muted); font-size:12.5px; max-width:1240px; margin:0 auto; 
 </section>
 
 <h2 id="backup">Location backup</h2>
-<p class="sub">Annual temperature and monthly degree days for each station. Click a city to expand.</p>
+<p class="sub">The two backup slides for each station — location and degree days. Click a city to expand.</p>
 <div id="backuplist"></div>
 
 <h2 id="methods">Data and methods</h2>
@@ -327,7 +351,6 @@ footer { color:var(--muted); font-size:12.5px; max-width:1240px; margin:0 auto; 
     return T(v);
   }
   function chosen() { return C.filter(function (c) { return sel[c.slug]; }); }
-  function firstOf(zone) { var z = C.filter(function (c) { return c.zone === zone && c.roleKind === 'proposed'; }); return z.length ? z[0].slug : null; }
 
   // ---------- pickers ----------
   // Two independent selections: `sel` drives every section; `cmp` drives
@@ -376,17 +399,16 @@ footer { color:var(--muted); font-size:12.5px; max-width:1240px; margin:0 auto; 
   buildPresets(document.getElementById('cmppresets'), 'cmp', cmp, function () { renderCmp(); });
 
   // ---------- zone list beside the map ----------
-  var zoneRows = [
-    ['4C', 'seattle-tacoma-intl-ap', 'Seattle is also the DOE/PNNL 4C city'],
-    ['5B', 'spokane-intl-ap', 'Replaces Boise, ID'],
-    ['6B', 'missoula-intl-ap', 'In place of Helena, MT']
-  ];
+  var zoneNote = { '4C': 'Seattle is also the DOE/PNNL 4C city', '5B': 'Two 5B runs; Boise has the highest CDD',
+                   '6B': 'In place of Helena, MT' };
   var zl = document.getElementById('zonelist');
-  zoneRows.forEach(function (r) {
-    var refs = C.filter(function (c) { return c.zone === r[0] && c.slug !== r[1]; })
+  ZONES.forEach(function (z) {
+    var mod = C.filter(function (c) { return c.zone === z && c.modeled; });
+    var refs = C.filter(function (c) { return c.zone === z && !c.modeled; })
       .map(function (c) { return esc(c.city) + ' (' + (c.roleKind === 'doe' ? 'DOE/PNNL' : 'NEEA') + ')'; }).join('; ');
-    zl.appendChild(el('li', {}, '<span class="zchip" style="background:' + ZC[r[0]] + '">' + r[0] + '</span><div><b>' +
-      esc(BY[r[1]].city) + '</b> <span class="muted">' + esc(r[2]) + '</span><br><span class="small">Compared with: ' + refs + '</span></div>'));
+    zl.appendChild(el('li', {}, '<span class="zchip" style="background:' + ZC[z] + '">' + z + '</span><div><b>' +
+      mod.map(function (c) { return esc(c.city); }).join(' + ') + '</b> <span class="muted">' + esc(zoneNote[z]) +
+      '</span><br><span class="small">Compared with: ' + refs + '</span></div>'));
   });
 
   // ---------- chart rows ----------
@@ -415,17 +437,48 @@ footer { color:var(--muted); font-size:12.5px; max-width:1240px; margin:0 auto; 
     zonesBox.appendChild(sec);
   });
 
-  // ---------- backup ----------
+  // ---------- backup: the two per-location slides, as two panels ----------
+  function clock(h) { h = +h; var ap = h < 12 ? 'am' : 'pm', d = h % 12 || 12; return d + ap; }
+  function fig(c, key, cap) {
+    return c.img[key] ? '<figure><img alt="' + esc(c.city + ' — ' + cap) + '" data-src="' + key + '">' +
+      (cap ? '<figcaption>' + esc(cap) + '</figcaption>' : '') + '</figure>' : '';
+  }
   var bl = document.getElementById('backuplist');
   C.forEach(function (c) {
-    var d = el('details', { 'data-slug': c.slug });
-    var figs = [['annual', 'Daily min / mean / max across the year'],
-                ['ddm', 'Degree days by month — occupied 7:00–19:00 solid, all hours pale']]
-      .filter(function (k) { return c.img[k[0]]; })
-      .map(function (k) { return '<figure><img alt="' + esc(c.city + ' ' + k[1]) + '" data-src="' + k[0] + '"><figcaption>' + k[1] + '</figcaption></figure>'; }).join('');
+    var d = el('details', { 'data-slug': c.slug }), m = c.meta, t = c.totals;
+    var facts = [['Latitude', m.latitude], ['Longitude', m.longitude], ['Elevation', m.elevation],
+                 ['Time zone', m.timezone], ['State', m.stateName]]
+      .filter(function (f) { return f[1]; })
+      .map(function (f) { return '<li>' + f[0] + ': ' + esc(f[1]) + '</li>'; }).join('');
+    var kop = m.koppenCode ? 'Köppen ' + esc(m.koppenCode) + (m.koppenName ? ' — ' + esc(m.koppenName) : '') : '';
+    var pct = t.totalHours ? Math.round(t.occupiedHours / t.totalHours * 100) : 0;
+    var panel1 =
+      '<div class="bk"><h4 class="bkt">' + esc(c.station) + '</h4><div class="bk1">' +
+        '<div class="bkl"><p class="small">' + esc(m.subtitle) + '</p><ul class="facts">' + facts + '</ul>' +
+          '<p class="zonehd">ASHRAE ' + esc(m.ashraeZone) + '</p><p class="small">' + kop +
+          (m.koppenDescription ? '<br>' + esc(m.koppenDescription) : '') + '</p>' +
+          fig(c, 'locmap', '') + fig(c, 'ucat', 'Outdoor comfort — UTCI hours by stress category') + '</div>' +
+        '<div class="bkr">' + fig(c, 'annual', 'Daily minimum, mean and maximum across the year') +
+          fig(c, 'profile', 'Hourly dry bulb and dew point by month (range and mean)') + '</div>' +
+      '</div></div>';
+    var panel2 = !t.unit ? '' :
+      '<div class="bk"><h4 class="bkt">Degree days <span class="muted">· ' + esc(c.station) + '</span></h4><div class="bk2">' +
+        '<div class="bkl">' + fig(c, 'ddt', 'Degree days by temperature bin — occupied hours solid, all hours pale') +
+          fig(c, 'ddm', 'Degree days by month — occupied hours solid, all hours pale') + '</div>' +
+        '<div class="bkr callouts">' +
+          '<div class="co"><div class="big" style="color:var(--hdd)">' + fmt(t.hddOccupied, 'int') + '</div>' +
+            '<div>heating degree days (' + esc(t.unit) + ', occupied)</div><div class="b">' + fmt(t.hddAll, 'int') + ' all hours</div></div>' +
+          '<div class="co"><div class="big" style="color:var(--cdd)">' + fmt(t.cddOccupied, 'int') + '</div>' +
+            '<div>cooling degree days (' + esc(t.unit) + ', occupied)</div><div class="b">' + fmt(t.cddAll, 'int') + ' all hours</div></div>' +
+          '<div class="co muted"><div class="b">Assumptions</div><div>Base ' + t.hBase + '°F heating and cooling.</div>' +
+            '<div>Occupied ' + t.occStart + ':00–' + t.occEnd + ':00, ' + fmt(t.occupiedHours, 'int') + ' of ' +
+            fmt(t.totalHours, 'int') + ' h (' + pct + '%).</div></div>' +
+        '</div></div>' +
+        '<p class="note">Filter shows ' + clock(t.occStart) + ' to ' + clock(t.occEnd) + ' occupied hours and transparent is all data</p>' +
+      '</div>';
     d.innerHTML = '<summary><span class="dot" style="background:' + ZC[c.zone] + '"></span>' + esc(c.city) +
       ' <span class="muted">· ' + esc(c.station) + '</span><span class="num">HDD65 ' + fmt(c.stats.hdd, 'int') +
-      ' · CDD65 ' + fmt(c.stats.cdd, 'int') + '</span></summary><p class="small">' + esc(c.facts) + '</p>' + figs;
+      ' · CDD65 ' + fmt(c.stats.cdd, 'int') + '</span></summary>' + panel1 + panel2;
     // Big images are attached only when opened, which keeps the page quick.
     d.addEventListener('toggle', function () {
       if (!d.open) return;
@@ -441,7 +494,7 @@ footer { color:var(--muted); font-size:12.5px; max-width:1240px; margin:0 auto; 
   function renderTable() {
     var t = document.getElementById('numbers');
     var cols = chosen();
-    var proposed = {}; ZONES.forEach(function (z) { proposed[firstOf(z)] = true; });
+    var proposed = {}; C.forEach(function (c) { if (c.modeled) proposed[c.slug] = true; });
     var h1 = '<tr><th></th>', h2 = '<tr><th></th>';
     ZONES.forEach(function (z) {
       var n = cols.filter(function (c) { return c.zone === z; }).length;

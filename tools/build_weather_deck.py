@@ -124,7 +124,7 @@ def add_map_slide(prs, grid, man_meta):
     locs = {l["slug"]: l for l in cfg["locations"]}
     slide = prs.slides.add_slide(B.layout(prs, B.L_TITLE_ONLY))
     B.set_text(slide, 0, "Locations in the Analysis")
-    subtitle(slide, "One modeled weather file per code climate zone, each set against the "
+    subtitle(slide, "Four modeled weather files (two in 5B), each set against the "
                     "DOE/PNNL prototype city and populated NEEA cities")
 
     B.add_picture_fitted(slide, grid["charts"]["grid-map"],
@@ -132,13 +132,15 @@ def add_map_slide(prs, grid, man_meta):
 
     # --- zone table, right ---
     x0 = Inches(7.15)
-    rows = [("4C", "seattle-tacoma-intl-ap", "Seattle is also the DOE/PNNL 4C city",
-             ["portland-intl-ap", "eugene-ap-sweet-field"]),
-            ("5B", "spokane-intl-ap", "Replaces Boise, ID",
-             ["denver-intl-ap", "boise-ap-gowen-field-angb",
-              "redmond-muni-ap-roberts-field", "yakima-af-mcallister-field"]),
-            ("6B", "missoula-intl-ap", "In place of Helena, MT",
-             ["great-falls", "helena-rgnl-ap"])]
+    # Modeled cities per zone come from the config's "modeled" flag.
+    notes = {"4C": "Seattle is also the DOE/PNNL 4C city",
+             "5B": "Two 5B runs; Boise has the highest CDD",
+             "6B": "In place of Helena, MT"}
+    rows = []
+    for zone in ("4C", "5B", "6B"):
+        zl = [l["slug"] for l in cfg["locations"] if l["codeZone"] == zone]
+        mod = [s for s in zl if locs[s].get("modeled")]
+        rows.append((zone, mod, notes[zone], [s for s in zl if s not in mod]))
     y = Inches(1.40)
     for zone, slug, note, refs in rows:
         col = rgb(cfg["zoneColors"][zone])
@@ -153,7 +155,7 @@ def add_map_slide(prs, grid, man_meta):
             f"{locs[s]['city']} ({'DOE/PNNL' if locs[s]['roleKind'] == 'doe' else 'NEEA'})"
             for s in refs)
         rich_box(slide, x0 + Inches(0.78), y - Inches(0.06), Inches(5.0), Inches(1.0), [
-            [(locs[slug]["city"], 15, True, B.BRAND_INK),
+            [(" + ".join(locs[m]["city"] for m in slug), 15, True, B.BRAND_INK),
              ("   " + note, 10, False, B.BRAND_MUTED)],
             [("Compared with: ", 10, True, SOFT), (ref_txt, 10, False, SOFT)],
         ])
@@ -231,7 +233,7 @@ def add_numbers_slide(prs, grid, man_meta):
     cfg = grid["config"]
     locs = {l["slug"]: l for l in cfg["locations"]}
     order = [("4C", ["seattle-tacoma-intl-ap", "portland-intl-ap", "eugene-ap-sweet-field"]),
-             ("5B", ["spokane-intl-ap", "boise-ap-gowen-field-angb", "denver-intl-ap",
+             ("5B", ["boise-ap-gowen-field-angb", "spokane-intl-ap", "denver-intl-ap",
                      "redmond-muni-ap-roberts-field", "yakima-af-mcallister-field"]),
              ("6B", ["missoula-intl-ap", "great-falls", "helena-rgnl-ap"])]
     slugs = [s for _, ss in order for s in ss]
@@ -239,11 +241,11 @@ def add_numbers_slide(prs, grid, man_meta):
 
     slide = prs.slides.add_slide(B.layout(prs, B.L_TITLE_ONLY))
     B.set_text(slide, 0, "Locations in Numbers")
-    subtitle(slide, "Modeled location first in each zone (bold) · all 8,760 hours of the typical year")
+    subtitle(slide, "Modeled locations in bold · all 8,760 hours of the typical year")
 
     nrows, ncols = len(METRICS) + 2, 1 + len(slugs)
     left, top = Inches(0.60), Inches(1.30)
-    firsts = {ss[0] for _, ss in order}
+    firsts = {s for _, ss in order for s in ss if locs[s].get("modeled")}
     # 12.15in of table across the slide, whatever the city count.
     cw = min(1.04, (12.15 - 2.75) / len(slugs))
     widths = [Inches(2.75)] + [Inches(cw)] * len(slugs)
@@ -355,11 +357,10 @@ def takeaways(grid, man_meta):
     se, po, eu = S["seattle-tacoma-intl-ap"], S["portland-intl-ap"], S["eugene-ap-sweet-field"]
     mi, gf, he = S["missoula-intl-ap"], S["great-falls"], S["helena-rgnl-ap"]
 
-    t5b = (f"Spokane is the heating-heavier, cooling-lighter 5B pick: {pct_diff(sp['hdd'], bo['hdd']):.0f}% "
-           f"more HDD65 than Boise and {abs(pct_diff(sp['cdd'], bo['cdd'])):.0f}% less CDD65. "
-           f"Denver sits between them — Boise-like heating ({de['hdd']:,}), cooling in the middle "
-           f"({de['cdd']:,}). Winter tails agree within {abs(bo['p10'] - de['p10']):.0f}°F; "
-           f"Spokane's hottest 10% starts {bo['p90'] - sp['p90']:.0f}°F below Boise's.")
+    t5b = (f"Boise and Spokane bracket 5B: Spokane carries {pct_diff(sp['hdd'], bo['hdd']):.0f}% more HDD65, "
+           f"Boise {pct_diff(bo['cdd'], sp['cdd']):.0f}% more CDD65 ({bo['cdd']:,} vs {sp['cdd']:,}) with a hottest-10% "
+           f"threshold {bo['p90'] - sp['p90']:.0f}°F higher. Denver, the DOE/PNNL city, falls between them — "
+           f"Boise-like heating ({de['hdd']:,}), cooling in the middle ({de['cdd']:,}).")
 
     t4c = (f"Heating is near-identical across 4C (HDD65 {min(se['hdd'], po['hdd'], eu['hdd']):,}–"
            f"{max(se['hdd'], po['hdd'], eu['hdd']):,}). Seattle has the mildest summer: "
@@ -487,12 +488,12 @@ def main():
 
     t5b, t4c, t6b, teast, east, sp, mi = takeaways(grid, man_meta)
 
-    section_slide(prs, "Picking a New 5B Location",
-                  "Boise, ID against Spokane, WA and Denver, CO (DOE/PNNL 5B city); whether Boise "
-                  "also stands in for Central/Eastern Oregon and SE Washington; and whether Spokane "
-                  "and Missoula are far enough apart to simulate separately.")
+    section_slide(prs, "5B: Boise and Spokane",
+                  "Two 5B simulations: Boise, ID (highest CDD in the set) and Spokane, WA. Shown "
+                  "against Denver, CO (DOE/PNNL 5B city); whether Boise stands in for Central/Eastern "
+                  "Oregon and SE Washington; and whether Spokane and Missoula are far enough apart.")
     add_grid_slide(prs, grid, man_meta, "5B: Boise vs. Spokane vs. Denver",
-                   "Current pick, proposed replacement and the DOE/PNNL 5B city · shared scales",
+                   "The two modeled 5B cities and the DOE/PNNL 5B city · shared scales",
                    ["boise-ap-gowen-field-angb", "spokane-intl-ap", "denver-intl-ap"], t5b)
     add_grid_slide(prs, grid, man_meta, "5B: Boise vs. Redmond vs. Yakima",
                    "Does Boise represent Central/Eastern Oregon and SE Washington "

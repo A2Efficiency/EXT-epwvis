@@ -1,7 +1,7 @@
 {
   "title": "LLLC+HVAC Weather Locations",
   "client": "NEEA · LLLC+HVAC Expansion",
-  "note": "Station set from Kathryn Bae's 10/29/2026 climate-zone proposal (approved by Chris Wolgamott 10/30). DOE/PNNL reference cities are the ASHRAE 90.1 prototype-model locations for each zone. Redmond and Yakima added 11/2/2026 at K. Bae's request (SE 5B gas funder area).",
+  "note": "Station set from Kathryn Bae's 10/29/2026 climate-zone proposal (approved by Chris Wolgamott 10/30). DOE/PNNL reference cities are the ASHRAE 90.1 prototype-model locations for each zone. Redmond and Yakima added 11/2/2026 at K. Bae's request (SE 5B gas funder area). Boise added as a second modeled 5B city (with Spokane) 11/4/2026 at NEEA's request.",
   "hBase": 65,
   "cBase": 65,
   "zoneColors": {
@@ -43,9 +43,10 @@
       "city": "Boise, ID",
       "short": "Boise",
       "codeZone": "5B",
-      "role": "Current pick · PNNL 2018 IECC",
-      "roleKind": "current",
-      "epw": "weather_files/lllc/boise-ap-gowen-field-angb.epw"
+      "role": "Proposed · highest CDD · PNNL 2018 IECC",
+      "roleKind": "proposed",
+      "epw": "weather_files/lllc/boise-ap-gowen-field-angb.epw",
+      "modeled": true
     },
     {
       "slug": "spokane-intl-ap",
